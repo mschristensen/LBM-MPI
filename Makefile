@@ -25,7 +25,7 @@ $(EXE) : utils.o lbm.o simulation.o
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 run: $(EXE)
-	./$(EXE) -a $(AV_VELS_FILE) -f $(FINAL_STATE_FILE) -p $(PARAM_FILE)
+	$(EXE) -a $(AV_VELS_FILE) -f $(FINAL_STATE_FILE) -p $(PARAM_FILE)
 
 plot:
 	gnuplot final_state.plt

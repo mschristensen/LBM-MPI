@@ -30,9 +30,12 @@ echo PBS job ID is $PBS_JOBID
 echo This jobs runs on the following machines:
 echo `cat $PBS_NODEFILE | uniq`
 
+#! Create a machine file for MPI
+cat $PBS_NODEFILE > machine.file.$PBS_JOBID
+
 numnodes=`wc $PBS_NODEFILE | awk '{ print $1 }'`
 
-export OMP_NUM_THREADS=$numnodes
+#export OMP_NUM_THREADS=$numnodes
 
 #! Run the executable
-$application $options
+mpirun -np $numnodes -machinefile machine.file.$PBS_JOBID $application $options

@@ -57,6 +57,7 @@
 #include <sys/resource.h>
 
 #include "lbm.h"
+#include "mpi.h"
 
 /*
 ** main program:
@@ -74,18 +75,58 @@ int main(int argc, char* argv[])
     speed_t* cells     = NULL;    /* grid containing fluid densities */
     speed_t* tmp_cells = NULL;    /* scratch space */
     int*     obstacles = NULL;    /* grid indicating which cells are blocked */
-    double*  av_vels   = NULL;    /* a record of the av. velocity computed for each timestep */
+    float*  av_vels   = NULL;    /* a record of the av. velocity computed for each timestep */
 
     int    ii;                    /*  generic counter */
     struct timeval timstr;        /* structure to hold elapsed time */
     struct rusage ru;             /* structure to hold CPU time--system and user */
-    double tic,toc;               /* floating point numbers to calculate elapsed wallclock time */
-    double usrtim;                /* floating point number to record elapsed user CPU time */
-    double systim;                /* floating point number to record elapsed system CPU time */
+    float tic,toc;               /* floating point numbers to calculate elapsed wallclock time */
+    float usrtim;                /* floating point number to record elapsed user CPU time */
+    float systim;                /* floating point number to record elapsed system CPU time */
 
     parse_args(argc, argv, &final_state_file, &av_vels_file, &param_file);
 
     initialise(param_file, &accel_area, &params, &cells, &tmp_cells, &obstacles, &av_vels);
+
+    // Initialize MPI environment.
+    enum bool {FALSE,TRUE}; /* enumerated type: false = 0, true = 1 */
+
+    MPI_Init(&argc, &argv);
+    int flag;
+    // Check if initialization was successful.
+    MPI_Initialized(&flag);
+    if(flag != TRUE) {
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    }
+
+    // *************************************************************************
+    // *************************** MPI HELLO WORLD *****************************
+    // *************************************************************************
+    int rank;               /* 'rank' of process among it's cohort */
+    int size;               /* size of cohort, i.e. num processes started */
+    int strlen;             /* length of a character array */
+    char hostname[MPI_MAX_PROCESSOR_NAME];  /* character array to hold hostname running process */
+    /* determine the hostname */
+    MPI_Get_processor_name(hostname,&strlen);
+
+    /*
+    ** determine the SIZE of the group of processes associated with
+    ** the 'communicator'.  MPI_COMM_WORLD is the default communicator
+    ** consisting of all the processes in the launched MPI 'job'
+    */
+    MPI_Comm_size( MPI_COMM_WORLD, &size );
+
+    /* determine the RANK of the current process [0:SIZE-1] */
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+
+    /*
+    ** make use of these values in our print statement
+    ** note that we are assuming that all processes can
+    ** write to the screen
+    */
+    printf("Hello, world; from host %s: process %d of %d\n", hostname, rank, size);
+    // *************************************************************************
+    // *************************************************************************
 
     /* iterate for max_iters timesteps */
     gettimeofday(&timstr,NULL);
@@ -117,6 +158,14 @@ int main(int argc, char* argv[])
     printf("Elapsed user CPU time:\t\t%.6f (s)\n", usrtim);
     printf("Elapsed system CPU time:\t%.6f (s)\n", systim);
 
+    // Finalize MPI environment.
+    MPI_Finalize();
+
+    MPI_Finalized(&flag);
+    if(flag != 1) {
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    }
+
     write_values(final_state_file, av_vels_file, params, cells, obstacles, av_vels);
     finalise(&cells, &tmp_cells, &obstacles, &av_vels);
 
@@ -124,16 +173,16 @@ int main(int argc, char* argv[])
 }
 
 void write_values(const char * final_state_file, const char * av_vels_file,
-    const param_t params, speed_t* cells, int* obstacles, double* av_vels)
+    const param_t params, speed_t* cells, int* obstacles, float* av_vels)
 {
     FILE* fp;                     /* file pointer */
     int ii,jj,kk;                 /* generic counters */
-    const double c_sq = 1.0/3.0;  /* sq. of speed of sound */
-    double local_density;         /* per grid cell sum of densities */
-    double pressure;              /* fluid pressure in grid cell */
-    double u_x;                   /* x-component of velocity in grid cell */
-    double u_y;                   /* y-component of velocity in grid cell */
-    double u;                     /* norm--root of summed squares--of u_x and u_y */
+    const float c_sq = 1.0/3.0;  /* sq. of speed of sound */
+    float local_density;         /* per grid cell sum of densities */
+    float pressure;              /* fluid pressure in grid cell */
+    float u_x;                   /* x-component of velocity in grid cell */
+    float u_y;                   /* y-component of velocity in grid cell */
+    float u;                     /* norm--root of summed squares--of u_x and u_y */
 
     fp = fopen(final_state_file, "w");
 
@@ -209,17 +258,17 @@ void write_values(const char * final_state_file, const char * av_vels_file,
     fclose(fp);
 }
 
-double calc_reynolds(const param_t params, speed_t* cells, int* obstacles)
+float calc_reynolds(const param_t params, speed_t* cells, int* obstacles)
 {
-    const double viscosity = 1.0 / 6.0 * (2.0 / params.omega - 1.0);
+    const float viscosity = 1.0 / 6.0 * (2.0 / params.omega - 1.0);
 
     return av_velocity(params,cells,obstacles) * params.reynolds_dim / viscosity;
 }
 
-double total_density(const param_t params, speed_t* cells)
+float total_density(const param_t params, speed_t* cells)
 {
     int ii,jj,kk;        /* generic counters */
-    double total = 0.0;  /* accumulator */
+    float total = 0.0;  /* accumulator */
 
     for (ii = 0; ii < params.ny; ii++)
     {
@@ -234,4 +283,3 @@ double total_density(const param_t params, speed_t* cells)
 
     return total;
 }
-
