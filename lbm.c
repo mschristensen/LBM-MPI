@@ -175,10 +175,12 @@ int main(int argc, char* argv[])
     MPI_Finalize();
 
     MPI_Finalized(&flag);
-    if(flag != 1) {
-        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    if(flag != TRUE) {
+      MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
+    //TODO: cannot write results directly, need to collect data back to master
+    printf("Writing results...\n");
     write_values(final_state_file, av_vels_file, params, cells, obstacles, av_vels);
     finalise(&cells, &tmp_cells, &obstacles, &av_vels);
 
