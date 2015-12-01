@@ -1,6 +1,7 @@
 #ifndef LBM_HDR_FILE
 #define LBM_HDR_FILE
 
+#define MASTER 0
 #define NSPEEDS         9
 
 /* Size of box in imaginary 'units */
@@ -41,9 +42,10 @@ typedef struct {
 void parse_args (int argc, char* argv[],
     char** final_state_file, char** av_vels_file, char** param_file);
 
-void initialise(const char* paramfile, accel_area_t * accel_area,
-    param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr,
-    int** obstacles_ptr, float** av_vels_ptr);
+void initialise(const char* param_file, accel_area_t * accel_area, param_t* params, int** obstacles_ptr, float** av_vels_ptr);
+void allocateLocal(const param_t params, speed_t** cells_ptr, speed_t** tmp_cells_ptr, int num_rows, int num_cols);
+
+int calc_ncols_from_rank(const param_t params, int rank, int size);
 
 void write_values(const char * final_state_file, const char * av_vels_file,
     const param_t params, speed_t* cells, int* obstacles, float* av_vels);

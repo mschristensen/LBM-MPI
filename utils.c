@@ -94,152 +94,166 @@ void parse_args (int argc, char* argv[],
     }
 }
 
-void initialise(const char* param_file, accel_area_t * accel_area,
-    param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr,
-    int** obstacles_ptr, float** av_vels_ptr)
+void initialise(const char* param_file, accel_area_t * accel_area, param_t* params, int** obstacles_ptr, float** av_vels_ptr)
 {
-    FILE   *fp;            /* file pointer */
-    int    ii,jj, kk;          /* generic counters */
-    int    retval;         /* to hold return value for checking */
+  int    ii,jj, kk;          /* generic counters */
+  FILE   *fp;            /* file pointer */
+  int    retval;         /* to hold return value for checking */
+
+  /* Rectangular obstacles */
+  int n_obstacles;
+  obstacle_t * obstacles;
+
+  fp = fopen(param_file, "r");
+
+  if (NULL == fp)
+  {
+      DIE("Unable to open param file %s", param_file);
+  }
+
+  /* read in the parameter values */
+  retval = fscanf(fp,"%d\n",&(params->nx));
+  if (retval != 1) DIE("Could not read param file: nx");
+  retval = fscanf(fp,"%d\n",&(params->ny));
+  if (retval != 1) DIE("Could not read param file: ny");
+  retval = fscanf(fp,"%d\n",&(params->max_iters));
+  if (retval != 1) DIE("Could not read param file: max_iters");
+  retval = fscanf(fp,"%d\n",&(params->reynolds_dim));
+  if (retval != 1) DIE("Could not read param file: reynolds_dim");
+  retval = fscanf(fp,"%f\n",&(params->density));
+  if (retval != 1) DIE("Could not read param file: density");
+  retval = fscanf(fp,"%f\n",&(params->accel));
+  if (retval != 1) DIE("Could not read param file: accel");
+  retval = fscanf(fp,"%f\n",&(params->omega));
+  if (retval != 1) DIE("Could not read param file: omega");
+
+  if (params->nx < 100) DIE("x dimension of grid in input file was too small (must be >100)");
+  if (params->ny < 100) DIE("y dimension of grid in input file was too small (must be >100)");
+
+
+  /* read column/row to accelerate */
+  char accel_dir_buf[11];
+  int idx;
+  retval = fscanf(fp,"%*s %10s %d\n", accel_dir_buf, &idx);
+  if (retval != 2) DIE("Could not read param file: could not parse acceleration specification");
+  if (idx > 100 || idx < 0) DIE("Acceleration index (%d) out of range (must be bigger than 0 and less than 100)", idx);
+
+  if (!(strcmp(accel_dir_buf, "row")))
+  {
+      accel_area->col_or_row = ACCEL_ROW;
+      accel_area->idx = idx*(params->ny/BOX_Y_SIZE);
+  }
+  else if (!(strcmp(accel_dir_buf, "column")))
+  {
+      accel_area->col_or_row = ACCEL_COLUMN;
+      accel_area->idx = idx*(params->nx/BOX_X_SIZE);
+  }
+  else
+  {
+      DIE("Error reading param file: Unexpected acceleration specification '%s'", accel_dir_buf);
+  }
+
+
+  /* read obstacles */
+  retval = fscanf(fp, "%d %*s\n", &n_obstacles);
+  if (retval != 1) DIE("Could not read param file: n_obstacles");
+  obstacles = (obstacle_t*) malloc(sizeof(obstacle_t)*(n_obstacles));
+
+  for (ii = 0; ii < n_obstacles; ii++)
+  {
+      retval = fscanf(fp,"%f %f %f %f\n",
+          &obstacles[ii].obs_x_min, &obstacles[ii].obs_y_min,
+          &obstacles[ii].obs_x_max, &obstacles[ii].obs_y_max);
+      if (retval != 4) DIE("Could not read param file: location of obstacle %d", ii + 1);
+      if (obstacles[ii].obs_x_min < 0 || obstacles[ii].obs_y_min < 0 ||
+          obstacles[ii].obs_x_max > 100 || obstacles[ii].obs_y_max > 100)
+      {
+          DIE("Obstacle %d out of range (must be bigger than 0 and less than 100)", ii);
+      }
+      if (obstacles[ii].obs_x_min > obstacles[ii].obs_x_max) DIE("Left x coordinate is bigger than right x coordinate - this will result in no obstacle being made");
+      if (obstacles[ii].obs_y_min > obstacles[ii].obs_y_max) DIE("Bottom y coordinate is bigger than top y coordinate - this will result in no obstacle being made");
+  }
+
+  /* close file */
+  fclose(fp);
+
+  // Allocate arrays
+  *obstacles_ptr = (int*) malloc(sizeof(int)*(params->ny*params->nx));
+  if (*obstacles_ptr == NULL) DIE("Cannot allocate memory for patches");
+
+  *av_vels_ptr = (float*) malloc(sizeof(float)*(params->max_iters));
+  if (*av_vels_ptr == NULL) DIE("Cannot allocate memory for av_vels");
+
+  // Initialise obstacles
+  for (ii = 0; ii < params->ny; ii++)
+  {
+    for (jj = 0; jj < params->nx; jj++)
+    {
+      (*obstacles_ptr)[ii*params->nx + jj] = 0;
+    }
+  }
+
+  /* Fill in locations of obstacles */
+  for (ii = 0; ii < params->ny; ii++)
+  {
+      for (jj = 0; jj < params->nx; jj++)
+      {
+          /* coordinates of (jj, ii) scaled to 'real world' terms */
+          const float x_pos = jj*(BOX_X_SIZE/params->nx);
+          const float y_pos = ii*(BOX_Y_SIZE/params->ny);
+
+          for (kk = 0; kk < n_obstacles; kk++)
+          {
+              if (x_pos >= obstacles[kk].obs_x_min &&
+                  x_pos <  obstacles[kk].obs_x_max &&
+                  y_pos >= obstacles[kk].obs_y_min &&
+                  y_pos <  obstacles[kk].obs_y_max)
+              {
+                  (*obstacles_ptr)[ii*params->nx + jj] = 1;
+              }
+          }
+      }
+  }
+
+  free(obstacles);
+}
+
+void allocateLocal(const param_t params, speed_t** cells_ptr, speed_t** tmp_cells_ptr, int num_rows, int num_cols)
+{
+    int    ii,jj;          /* generic counters */
     float w0,w1,w2;       /* weighting factors */
 
-    /* Rectangular obstacles */
-    int n_obstacles;
-    obstacle_t * obstacles;
-
-    fp = fopen(param_file, "r");
-
-    if (NULL == fp)
-    {
-        DIE("Unable to open param file %s", param_file);
-    }
-
-    /* read in the parameter values */
-    retval = fscanf(fp,"%d\n",&(params->nx));
-    if (retval != 1) DIE("Could not read param file: nx");
-    retval = fscanf(fp,"%d\n",&(params->ny));
-    if (retval != 1) DIE("Could not read param file: ny");
-    retval = fscanf(fp,"%d\n",&(params->max_iters));
-    if (retval != 1) DIE("Could not read param file: max_iters");
-    retval = fscanf(fp,"%d\n",&(params->reynolds_dim));
-    if (retval != 1) DIE("Could not read param file: reynolds_dim");
-    retval = fscanf(fp,"%f\n",&(params->density));
-    if (retval != 1) DIE("Could not read param file: density");
-    retval = fscanf(fp,"%f\n",&(params->accel));
-    if (retval != 1) DIE("Could not read param file: accel");
-    retval = fscanf(fp,"%f\n",&(params->omega));
-    if (retval != 1) DIE("Could not read param file: omega");
-
-    if (params->nx < 100) DIE("x dimension of grid in input file was too small (must be >100)");
-    if (params->ny < 100) DIE("y dimension of grid in input file was too small (must be >100)");
-
-    /* read column/row to accelerate */
-    char accel_dir_buf[11];
-    int idx;
-    retval = fscanf(fp,"%*s %10s %d\n", accel_dir_buf, &idx);
-    if (retval != 2) DIE("Could not read param file: could not parse acceleration specification");
-    if (idx > 100 || idx < 0) DIE("Acceleration index (%d) out of range (must be bigger than 0 and less than 100)", idx);
-
-    if (!(strcmp(accel_dir_buf, "row")))
-    {
-        accel_area->col_or_row = ACCEL_ROW;
-        accel_area->idx = idx*(params->ny/BOX_Y_SIZE);
-    }
-    else if (!(strcmp(accel_dir_buf, "column")))
-    {
-        accel_area->col_or_row = ACCEL_COLUMN;
-        accel_area->idx = idx*(params->nx/BOX_X_SIZE);
-    }
-    else
-    {
-        DIE("Error reading param file: Unexpected acceleration specification '%s'", accel_dir_buf);
-    }
-
-    /* read obstacles */
-    retval = fscanf(fp, "%d %*s\n", &n_obstacles);
-    if (retval != 1) DIE("Could not read param file: n_obstacles");
-    obstacles = (obstacle_t*) malloc(sizeof(obstacle_t)*(n_obstacles));
-
-    for (ii = 0; ii < n_obstacles; ii++)
-    {
-        retval = fscanf(fp,"%f %f %f %f\n",
-            &obstacles[ii].obs_x_min, &obstacles[ii].obs_y_min,
-            &obstacles[ii].obs_x_max, &obstacles[ii].obs_y_max);
-        if (retval != 4) DIE("Could not read param file: location of obstacle %d", ii + 1);
-        if (obstacles[ii].obs_x_min < 0 || obstacles[ii].obs_y_min < 0 ||
-            obstacles[ii].obs_x_max > 100 || obstacles[ii].obs_y_max > 100)
-        {
-            DIE("Obstacle %d out of range (must be bigger than 0 and less than 100)", ii);
-        }
-        if (obstacles[ii].obs_x_min > obstacles[ii].obs_x_max) DIE("Left x coordinate is bigger than right x coordinate - this will result in no obstacle being made");
-        if (obstacles[ii].obs_y_min > obstacles[ii].obs_y_max) DIE("Bottom y coordinate is bigger than top y coordinate - this will result in no obstacle being made");
-    }
-
-    /* close file */
-    fclose(fp);
-
     /* Allocate arrays */
-    *cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->ny*params->nx));
+    printf("Allocating %d rows * %d cols.\n", num_rows, num_cols);
+    *cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(num_rows * num_cols));
     if (*cells_ptr == NULL) DIE("Cannot allocate memory for cells");
 
-    *tmp_cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->ny*params->nx));
+    *tmp_cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(num_rows * num_cols));
     if (*tmp_cells_ptr == NULL) DIE("Cannot allocate memory for tmp_cells");
 
-    *obstacles_ptr = (int*) malloc(sizeof(int)*(params->ny*params->nx));
-    if (*obstacles_ptr == NULL) DIE("Cannot allocate memory for patches");
-
-    *av_vels_ptr = (float*) malloc(sizeof(float)*(params->max_iters));
-    if (*av_vels_ptr == NULL) DIE("Cannot allocate memory for av_vels");
-
-    w0 = params->density * 4.0/9.0;
-    w1 = params->density      /9.0;
-    w2 = params->density      /36.0;
+    w0 = params.density * 4.0/9.0;
+    w1 = params.density      /9.0;
+    w2 = params.density      /36.0;
 
     /* Initialise arrays */
-    for (ii = 0; ii < params->ny; ii++)
+    for (ii = 0; ii < num_rows; ii++)
     {
-        for (jj = 0; jj < params->nx; jj++)
+        for (jj = 0; jj < num_cols; jj++)
         {
             /* centre */
-            (*cells_ptr)[ii*params->nx + jj].speeds[0] = w0;
+            (*cells_ptr)[ii*num_cols + jj].speeds[0] = w0;
             /* axis directions */
-            (*cells_ptr)[ii*params->nx + jj].speeds[1] = w1;
-            (*cells_ptr)[ii*params->nx + jj].speeds[2] = w1;
-            (*cells_ptr)[ii*params->nx + jj].speeds[3] = w1;
-            (*cells_ptr)[ii*params->nx + jj].speeds[4] = w1;
+            (*cells_ptr)[ii*num_cols + jj].speeds[1] = w1;
+            (*cells_ptr)[ii*num_cols + jj].speeds[2] = w1;
+            (*cells_ptr)[ii*num_cols + jj].speeds[3] = w1;
+            (*cells_ptr)[ii*num_cols + jj].speeds[4] = w1;
             /* diagonals */
-            (*cells_ptr)[ii*params->nx + jj].speeds[5] = w2;
-            (*cells_ptr)[ii*params->nx + jj].speeds[6] = w2;
-            (*cells_ptr)[ii*params->nx + jj].speeds[7] = w2;
-            (*cells_ptr)[ii*params->nx + jj].speeds[8] = w2;
-
-            (*obstacles_ptr)[ii*params->nx + jj] = 0;
+            (*cells_ptr)[ii*num_cols + jj].speeds[5] = w2;
+            (*cells_ptr)[ii*num_cols + jj].speeds[6] = w2;
+            (*cells_ptr)[ii*num_cols + jj].speeds[7] = w2;
+            (*cells_ptr)[ii*num_cols + jj].speeds[8] = w2;
         }
     }
-
-    /* Fill in locations of obstacles */
-    for (ii = 0; ii < params->ny; ii++)
-    {
-        for (jj = 0; jj < params->nx; jj++)
-        {
-            /* coordinates of (jj, ii) scaled to 'real world' terms */
-            const float x_pos = jj*(BOX_X_SIZE/params->nx);
-            const float y_pos = ii*(BOX_Y_SIZE/params->ny);
-
-            for (kk = 0; kk < n_obstacles; kk++)
-            {
-                if (x_pos >= obstacles[kk].obs_x_min &&
-                    x_pos <  obstacles[kk].obs_x_max &&
-                    y_pos >= obstacles[kk].obs_y_min &&
-                    y_pos <  obstacles[kk].obs_y_max)
-                {
-                    (*obstacles_ptr)[ii*params->nx + jj] = 1;
-                }
-            }
-        }
-    }
-
-    free(obstacles);
 }
 
 void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr,

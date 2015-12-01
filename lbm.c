@@ -65,6 +65,7 @@
 */
 int main(int argc, char* argv[])
 {
+    enum bool {FALSE,TRUE}; /* enumerated type: false = 0, true = 1 */
     char * final_state_file = NULL;
     char * av_vels_file = NULL;
     char * param_file = NULL;
@@ -86,11 +87,9 @@ int main(int argc, char* argv[])
 
     parse_args(argc, argv, &final_state_file, &av_vels_file, &param_file);
 
-    initialise(param_file, &accel_area, &params, &cells, &tmp_cells, &obstacles, &av_vels);
+    initialise(param_file, &accel_area, &params, &obstacles, &av_vels);
 
     // Initialize MPI environment.
-    enum bool {FALSE,TRUE}; /* enumerated type: false = 0, true = 1 */
-
     MPI_Init(&argc, &argv);
     int flag;
     // Check if initialization was successful.
@@ -99,14 +98,16 @@ int main(int argc, char* argv[])
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    // *************************************************************************
-    // *************************** MPI HELLO WORLD *****************************
-    // *************************************************************************
-    int rank;               /* 'rank' of process among it's cohort */
-    int size;               /* size of cohort, i.e. num processes started */
-    int strlen;             /* length of a character array */
-    char hostname[MPI_MAX_PROCESSOR_NAME];  /* character array to hold hostname running process */
-    /* determine the hostname */
+    int rank;               // 'rank' of process among it's cohort
+    int left;               // the rank of the process to the left
+    int right;              // the rank of the process to the right
+    int local_nrows;        // number of rows apportioned to this rank
+    int local_ncols;        // number of columns apportioned to this rank
+    int size;               // size of cohort, i.e. num processes started
+    int strlen;             // length of a character array
+    char hostname[MPI_MAX_PROCESSOR_NAME];  // character array to hold hostname running process
+
+    // determine the hostname
     MPI_Get_processor_name(hostname,&strlen);
 
     /*
@@ -120,13 +121,29 @@ int main(int argc, char* argv[])
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
 
     /*
-    ** make use of these values in our print statement
-    ** note that we are assuming that all processes can
-    ** write to the screen
+    ** determine process ranks to the left and right of rank
+    ** respecting periodic boundary conditions
     */
-    printf("Hello, world; from host %s: process %d of %d\n", hostname, rank, size);
-    // *************************************************************************
-    // *************************************************************************
+    left = (rank == MASTER) ? (rank + size - 1) : (rank - 1);
+    right = (rank + 1) % size;
+
+    /*
+    ** determine local grid size
+    ** each rank gets all the rows, but a subset of the number of columns
+    */
+    local_nrows = params.ny;
+    local_ncols = calc_ncols_from_rank(params, rank, size);
+    if (local_ncols < 1) {
+      fprintf(stderr,"Error: too many processes:- local_ncols < 1\n");
+      MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    }
+
+    // Allocate the local arrays
+    allocateLocal(params, &cells, &tmp_cells, local_nrows, local_ncols);
+
+    printf("Host %s: process %d of %d :: local_cells of size %dx%d\n", hostname, rank, size, local_nrows, local_ncols);
+
+    // TODO: Convert everything below here to MPI
 
     /* iterate for max_iters timesteps */
     gettimeofday(&timstr,NULL);
@@ -170,6 +187,21 @@ int main(int argc, char* argv[])
     finalise(&cells, &tmp_cells, &obstacles, &av_vels);
 
     return EXIT_SUCCESS;
+}
+
+int calc_ncols_from_rank(const param_t params, int rank, int size)
+{
+  int ncols;
+
+  ncols = params.nx / size;       /* integer division */
+  if ((params.nx % size) != 0) {  /* if there is a remainder */
+    if (rank == size - 1)
+      ncols += params.nx % size;  /* add remainder to last rank */
+  }
+
+  printf("Rank %d is has %d cols.\n", rank, ncols);
+
+  return ncols;
 }
 
 void write_values(const char * final_state_file, const char * av_vels_file,
