@@ -98,10 +98,8 @@ int main(int argc, char* argv[])
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    int rank;               // 'rank' of process among it's cohort
     int left;               // the rank of the process to the left
     int right;              // the rank of the process to the right
-    int size;               // size of cohort, i.e. num processes started
     int strlen;             // length of a character array
     char hostname[MPI_MAX_PROCESSOR_NAME];  // character array to hold hostname running process
 
@@ -113,24 +111,24 @@ int main(int argc, char* argv[])
     ** the 'communicator'.  MPI_COMM_WORLD is the default communicator
     ** consisting of all the processes in the launched MPI 'job'
     */
-    MPI_Comm_size( MPI_COMM_WORLD, &size );
+    MPI_Comm_size( MPI_COMM_WORLD, &(params.size) );
 
     /* determine the RANK of the current process [0:SIZE-1] */
-    MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+    MPI_Comm_rank( MPI_COMM_WORLD, &(params.rank) );
 
     /*
     ** determine process ranks to the left and right of rank
     ** respecting periodic boundary conditions
     */
-    left = (rank == MASTER) ? (rank + size - 1) : (rank - 1);
-    right = (rank + 1) % size;
+    left = (params.rank == MASTER) ? (params.rank + params.size - 1) : (params.rank - 1);
+    right = (params.rank + 1) % params.size;
 
     /*
     ** determine local grid size
     ** each rank gets all the rows, but a subset of the number of columns
     */
     params.loc_ny = params.ny;
-    params.loc_nx = calc_ncols_from_rank(params, rank, size);
+    params.loc_nx = calc_ncols_from_rank(params);
     if (params.loc_nx < 1) {
       fprintf(stderr,"Error: too many processes:- local_ncols < 1\n");
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
@@ -139,7 +137,7 @@ int main(int argc, char* argv[])
     // Allocate the local arrays
     allocateLocal(params, &cells, &tmp_cells);
 
-    printf("Host %s: process %d of %d :: local_cells of size %dx%d plus halos\n", hostname, rank, size, params.loc_ny, params.loc_nx);
+    printf("Host %s: process %d of %d :: local_cells of size %dx%d plus halos\n", hostname, params.rank, params.size, params.loc_ny, params.loc_nx);
 
     // TODO: Convert everything below here to MPI
 
@@ -187,17 +185,17 @@ int main(int argc, char* argv[])
     return EXIT_SUCCESS;
 }
 
-int calc_ncols_from_rank(const param_t params, int rank, int size)
+int calc_ncols_from_rank(const param_t params)
 {
   int ncols;
 
-  ncols = params.nx / size;       /* integer division */
-  if ((params.nx % size) != 0) {  /* if there is a remainder */
-    if (rank == size - 1)
-      ncols += params.nx % size;  /* add remainder to last rank */
+  ncols = params.nx / params.size;       /* integer division */
+  if ((params.nx % params.size) != 0) {  /* if there is a remainder */
+    if (params.rank == params.size - 1)
+      ncols += params.nx % params.size;  /* add remainder to last rank */
   }
 
-  printf("Rank %d is has %d cols.\n", rank, ncols);
+  printf("Rank %d is has %d cols.\n", params.rank, ncols);
 
   return ncols;
 }
