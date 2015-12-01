@@ -12,6 +12,8 @@
 typedef struct {
     int nx;            /* no. of cells in x-direction */
     int ny;            /* no. of cells in y-direction */
+    int loc_nx;        // no. of cells in local array in x-direction
+    int loc_ny;         // no. of cells in local array in y-direction
     int max_iters;      /* no. of iterations */
     int reynolds_dim;  /* dimension for Reynolds number */
     float density;       /* density per link */
@@ -43,7 +45,7 @@ void parse_args (int argc, char* argv[],
     char** final_state_file, char** av_vels_file, char** param_file);
 
 void initialise(const char* param_file, accel_area_t * accel_area, param_t* params, int** obstacles_ptr, float** av_vels_ptr);
-void allocateLocal(const param_t params, speed_t** cells_ptr, speed_t** tmp_cells_ptr, int num_rows, int num_cols);
+void allocateLocal(const param_t params, speed_t** cells_ptr, speed_t** tmp_cells_ptr);
 
 int calc_ncols_from_rank(const param_t params, int rank, int size);
 

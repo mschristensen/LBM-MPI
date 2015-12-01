@@ -101,8 +101,6 @@ int main(int argc, char* argv[])
     int rank;               // 'rank' of process among it's cohort
     int left;               // the rank of the process to the left
     int right;              // the rank of the process to the right
-    int local_nrows;        // number of rows apportioned to this rank
-    int local_ncols;        // number of columns apportioned to this rank
     int size;               // size of cohort, i.e. num processes started
     int strlen;             // length of a character array
     char hostname[MPI_MAX_PROCESSOR_NAME];  // character array to hold hostname running process
@@ -131,17 +129,17 @@ int main(int argc, char* argv[])
     ** determine local grid size
     ** each rank gets all the rows, but a subset of the number of columns
     */
-    local_nrows = params.ny;
-    local_ncols = calc_ncols_from_rank(params, rank, size);
-    if (local_ncols < 1) {
+    params.loc_ny = params.ny;
+    params.loc_nx = calc_ncols_from_rank(params, rank, size);
+    if (params.loc_nx < 1) {
       fprintf(stderr,"Error: too many processes:- local_ncols < 1\n");
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
     // Allocate the local arrays
-    allocateLocal(params, &cells, &tmp_cells, local_nrows, local_ncols);
+    allocateLocal(params, &cells, &tmp_cells);
 
-    printf("Host %s: process %d of %d :: local_cells of size %dx%d\n", hostname, rank, size, local_nrows, local_ncols);
+    printf("Host %s: process %d of %d :: local_cells of size %dx%d plus halos\n", hostname, rank, size, params.loc_ny, params.loc_nx);
 
     // TODO: Convert everything below here to MPI
 
