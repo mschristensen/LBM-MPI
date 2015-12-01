@@ -8,14 +8,25 @@
 #define BOX_X_SIZE (100.0)
 #define BOX_Y_SIZE (100.0)
 
+/* struct to hold the 'speed' values */
+typedef struct {
+    float speeds[NSPEEDS];
+} speed_t;
+
 /* struct to hold the parameter values */
 typedef struct {
     int nx;            /* no. of cells in x-direction */
     int ny;            /* no. of cells in y-direction */
+
     int loc_nx;        // no. of cells in local array in x-direction
     int loc_ny;        // no. of cells in local array in y-direction
     int rank;          // 'rank' of process among it's cohort
     int size;          // size of cohort, i.e. num processes started
+    int left;          // the rank of the process to the left
+    int right;         // the rank of the process to the right
+    speed_t* sendbuf;
+    speed_t* recvbuf;
+
     int max_iters;      /* no. of iterations */
     int reynolds_dim;  /* dimension for Reynolds number */
     float density;       /* density per link */
@@ -31,11 +42,6 @@ typedef struct {
     float obs_y_max;
 } obstacle_t;
 
-/* struct to hold the 'speed' values */
-typedef struct {
-    float speeds[NSPEEDS];
-} speed_t;
-
 typedef enum { ACCEL_ROW, ACCEL_COLUMN } accel_e;
 typedef struct {
     accel_e col_or_row;
@@ -47,7 +53,7 @@ void parse_args (int argc, char* argv[],
     char** final_state_file, char** av_vels_file, char** param_file);
 
 void initialise(const char* param_file, accel_area_t * accel_area, param_t* params, int** obstacles_ptr, float** av_vels_ptr);
-void allocateLocal(const param_t params, speed_t** cells_ptr, speed_t** tmp_cells_ptr);
+void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr);
 
 int calc_ncols_from_rank(const param_t params);
 
@@ -64,6 +70,7 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
 void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells);
 void rebound(const param_t params, speed_t* cells, speed_t* tmp_cells, int* obstacles);
 void collision(const param_t params, speed_t* cells, speed_t* tmp_cells, int* obstacles);
+void halo_exchange(const param_t params, speed_t* cells, speed_t* tmp_cells);
 
 /* Sum all the densities in the grid.
 ** The total should remain constant from one timestep to the next. */

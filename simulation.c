@@ -1,8 +1,12 @@
 /* Functions pertinent to the outer simulation steps */
 
 #include <math.h>
+#include <stdlib.h> //for malloc
+#include <stdio.h>  //for printf
+#include <string.h> //for memcpy
 
 #include "lbm.h"
+#include "mpi.h"
 
 void timestep(const param_t params, const accel_area_t accel_area,
     speed_t* cells, speed_t* tmp_cells, int* obstacles)
@@ -11,6 +15,73 @@ void timestep(const param_t params, const accel_area_t accel_area,
     propagate(params,cells,tmp_cells);
     rebound(params,cells,tmp_cells,obstacles);
     collision(params,cells,tmp_cells,obstacles);
+    halo_exchange(params,cells,tmp_cells);
+}
+
+void halo_exchange(const param_t params, speed_t* cells, speed_t* tmp_cells)
+{
+  int ii;
+  int tag = 0;           // scope for adding extra information to a message
+  MPI_Status status;     // struct used by MPI_Recv
+
+  // send to the left, receive from right
+  //if(params.rank == MASTER) printf("Send left: ");
+  for(ii = 0; ii < params.loc_ny; ii++)
+  {
+    memcpy(params.sendbuf[ii].speeds, cells[ii*params.loc_nx + 1].speeds, sizeof(float)*NSPEEDS);
+    //int kk;
+    //for(kk = 0;kk<NSPEEDS;kk++){
+      //The below still contains some 0s
+      //if(params.rank == MASTER) printf("%f ", params.sendbuf[ii].speeds[kk]);
+      //if(params.rank == MASTER) printf("%f ", cells[ii*params.loc_nx + 1].speeds[kk]);
+    //}
+  }
+  //if(params.rank == MASTER) printf("\n");
+  for(ii = 0; ii < params.loc_ny; ii++) {
+    MPI_Sendrecv(params.sendbuf[ii].speeds, params.loc_ny, MPI_FLOAT, params.left, tag,
+                 params.recvbuf[ii].speeds, params.loc_ny, MPI_FLOAT, params.right,tag, MPI_COMM_WORLD, &status);
+  }
+  //if(params.rank == MASTER) printf("Receive from right: ");
+  for(ii = 0; ii < params.loc_ny; ii++)
+  {
+    memcpy(cells[ii*params.loc_nx + params.loc_nx + 1].speeds, params.recvbuf[ii].speeds, sizeof(float)*NSPEEDS);
+    //int kk;
+    //for(kk = 0;kk<NSPEEDS;kk++){
+      //if(params.rank == MASTER) printf("%f ", params.recvbuf[ii].speeds[kk]);
+      //if(params.rank == MASTER) printf("%f ", cells[ii*params.loc_nx + params.loc_nx + 1].speeds[kk]);
+    //}
+    //if(params.rank == MASTER) printf("\n");
+  }
+  //if(params.rank == MASTER) printf("\n");
+
+  // send to the right, receive from left
+  //if(params.rank == MASTER) printf("Send right: ");
+  for(ii = 0; ii < params.loc_ny; ii++)
+  {
+    memcpy(params.sendbuf[ii].speeds, cells[ii*params.loc_nx + params.loc_nx].speeds, sizeof(float)*NSPEEDS);
+    //int kk;
+    //for(kk = 0;kk<NSPEEDS;kk++){
+      //if(params.rank == MASTER) printf("%f ", params.sendbuf[ii].speeds[kk]);
+      //if(params.rank == MASTER) printf("%f ", cells[ii*params.loc_nx + params.loc_nx].speeds[kk]);
+    //}
+  }
+  //if(params.rank == MASTER) printf("\n");
+  for(ii = 0; ii < params.loc_ny; ii++) {
+    MPI_Sendrecv(params.sendbuf[ii].speeds, params.loc_ny, MPI_FLOAT, params.right, tag,
+                 params.recvbuf[ii].speeds, params.loc_ny, MPI_FLOAT, params.left,  tag, MPI_COMM_WORLD, &status);
+  }
+  //if(params.rank == MASTER) printf("Receive from left: ");
+  for(ii = 0; ii < params.loc_ny; ii++)
+  {
+    memcpy(cells[ii*params.loc_nx + 0].speeds, params.recvbuf[ii].speeds, sizeof(float)*NSPEEDS);
+    //int kk;
+    //for(kk = 0;kk<NSPEEDS;kk++){
+      //if(params.rank == MASTER) printf("%f ", params.recvbuf[ii].speeds[kk]);
+      //if(params.rank == MASTER) printf("%f ", cells[ii*params.loc_nx + 0].speeds[kk]);
+    //}
+    //if(params.rank == MASTER) printf("\n");
+  }
+  //if(params.rank == MASTER) printf("\n");
 }
 
 void accelerate_flow(const param_t params, const accel_area_t accel_area,
@@ -31,7 +102,7 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
         {
             // if the cell is not occupied and
             // we don't send a density negative
-            if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_ny))] &&
+            if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))] &&
             (cells[ii*params.loc_nx + jj].speeds[4] - w1) > 0.0 &&
             (cells[ii*params.loc_nx + jj].speeds[7] - w2) > 0.0 &&
             (cells[ii*params.loc_nx + jj].speeds[8] - w2) > 0.0 )
@@ -55,7 +126,7 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
         {
             // if the cell is not occupied and
             // we don't send a density negative
-            if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_ny))] &&
+            if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))] &&
             (cells[ii*params.loc_nx + (jj+1)].speeds[3] - w1) > 0.0 &&
             (cells[ii*params.loc_nx + (jj+1)].speeds[6] - w2) > 0.0 &&
             (cells[ii*params.loc_nx + (jj+1)].speeds[7] - w2) > 0.0 )
@@ -116,7 +187,7 @@ void rebound(const param_t params, speed_t* cells, speed_t* tmp_cells, int* obst
         for (jj = 0; jj < params.loc_nx; jj++)
         {
             /* if the cell contains an obstacle */
-            if (obstacles[ii*params.nx + (jj * (params.rank + 1))])
+            if (obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))])
             {
                 /* called after propagate, so taking values from scratch space
                 ** mirroring, and writing into main grid */
@@ -156,7 +227,7 @@ void collision(const param_t params, speed_t* cells, speed_t* tmp_cells, int* ob
         for (jj = 0; jj < params.loc_nx; jj++)
         {
             /* don't consider occupied cells */
-            if (!obstacles[ii*params.nx + (jj * (params.rank + 1))])
+            if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))])
             {
                 /* compute local density total */
                 local_density = 0.0;
@@ -258,32 +329,32 @@ float av_velocity(const param_t params, speed_t* cells, int* obstacles)
         for (jj = 0; jj < params.loc_nx; jj++)
         {
             // ignore occupied cells
-            if (!obstacles[ii*params.nx + (jj * (params.rank + 1))])
+            if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))])
             {
                 // local density total
                 local_density = 0.0;
 
                 for (kk = 0; kk < NSPEEDS; kk++)
                 {
-                    local_density += cells[ii*params.loc_nx + jj].speeds[kk];
+                    local_density += cells[ii*params.loc_nx + (jj+1)].speeds[kk];
                 }
 
                 // x-component of velocity
-                u_x = (cells[ii*params.loc_nx + jj].speeds[1] +
-                        cells[ii*params.loc_nx + jj].speeds[5] +
-                        cells[ii*params.loc_nx + jj].speeds[8]
-                    - (cells[ii*params.loc_nx + jj].speeds[3] +
-                        cells[ii*params.loc_nx + jj].speeds[6] +
-                        cells[ii*params.loc_nx + jj].speeds[7])) /
+                u_x = (cells[ii*params.loc_nx + (jj+1)].speeds[1] +
+                        cells[ii*params.loc_nx + (jj+1)].speeds[5] +
+                        cells[ii*params.loc_nx + (jj+1)].speeds[8]
+                    - (cells[ii*params.loc_nx + (jj+1)].speeds[3] +
+                        cells[ii*params.loc_nx + (jj+1)].speeds[6] +
+                        cells[ii*params.loc_nx + (jj+1)].speeds[7])) /
                     local_density;
 
                 // compute y velocity component
-                u_y = (cells[ii*params.loc_nx + jj].speeds[2] +
-                        cells[ii*params.loc_nx + jj].speeds[5] +
-                        cells[ii*params.loc_nx + jj].speeds[6]
-                    - (cells[ii*params.loc_nx + jj].speeds[4] +
-                        cells[ii*params.loc_nx + jj].speeds[7] +
-                        cells[ii*params.loc_nx + jj].speeds[8])) /
+                u_y = (cells[ii*params.loc_nx + (jj+1)].speeds[2] +
+                        cells[ii*params.loc_nx + (jj+1)].speeds[5] +
+                        cells[ii*params.loc_nx + (jj+1)].speeds[6]
+                    - (cells[ii*params.loc_nx + (jj+1)].speeds[4] +
+                        cells[ii*params.loc_nx + (jj+1)].speeds[7] +
+                        cells[ii*params.loc_nx + (jj+1)].speeds[8])) /
                     local_density;
 
                 // accumulate the norm of x- and y- velocity components
@@ -293,6 +364,5 @@ float av_velocity(const param_t params, speed_t* cells, int* obstacles)
             }
         }
     }
-
     return tot_u / (float)tot_cells;
 }

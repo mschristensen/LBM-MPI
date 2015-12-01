@@ -98,8 +98,6 @@ int main(int argc, char* argv[])
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    int left;               // the rank of the process to the left
-    int right;              // the rank of the process to the right
     int strlen;             // length of a character array
     char hostname[MPI_MAX_PROCESSOR_NAME];  // character array to hold hostname running process
 
@@ -120,8 +118,8 @@ int main(int argc, char* argv[])
     ** determine process ranks to the left and right of rank
     ** respecting periodic boundary conditions
     */
-    left = (params.rank == MASTER) ? (params.rank + params.size - 1) : (params.rank - 1);
-    right = (params.rank + 1) % params.size;
+    params.left = (params.rank == MASTER) ? (params.rank + params.size - 1) : (params.rank - 1);
+    params.right = (params.rank + 1) % params.size;
 
     /*
     ** determine local grid size
@@ -135,7 +133,7 @@ int main(int argc, char* argv[])
     }
 
     // Allocate the local arrays
-    allocateLocal(params, &cells, &tmp_cells);
+    allocateLocal(&params, &cells, &tmp_cells);
 
     printf("Host %s: process %d of %d :: local_cells of size %dx%d plus halos\n", hostname, params.rank, params.size, params.loc_ny, params.loc_nx);
 

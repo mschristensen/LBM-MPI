@@ -218,42 +218,46 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
   free(obstacles);
 }
 
-void allocateLocal(const param_t params, speed_t** cells_ptr, speed_t** tmp_cells_ptr)
+void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr)
 {
     int    ii,jj;          /* generic counters */
     float w0,w1,w2;       /* weighting factors */
 
     /* Allocate arrays, including halo space */
-    printf("Allocating %d rows * %d cols.\n", params.loc_ny, params.loc_nx + 2);
-    *cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params.loc_ny * (params.loc_nx + 2)));
+    printf("Allocating %d rows * %d cols.\n", params->loc_ny, params->loc_nx + 2);
+    *cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->loc_ny * (params->loc_nx + 2)));
     if (*cells_ptr == NULL) DIE("Cannot allocate memory for cells");
 
-    *tmp_cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params.loc_ny * (params.loc_nx + 2)));
+    *tmp_cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->loc_ny * (params->loc_nx + 2)));
     if (*tmp_cells_ptr == NULL) DIE("Cannot allocate memory for tmp_cells");
 
-    w0 = params.density * 4.0/9.0;
-    w1 = params.density      /9.0;
-    w2 = params.density      /36.0;
+    w0 = params->density * 4.0/9.0;
+    w1 = params->density      /9.0;
+    w2 = params->density      /36.0;
 
     /* Initialise arrays */
-    for (ii = 0; ii < params.loc_ny; ii++)
+    for (ii = 0; ii < params->loc_ny; ii++)
     {
-        for (jj = 0; jj < (params.loc_nx + 2); jj++)
+        for (jj = 0; jj < (params->loc_nx + 2); jj++)
         {
             /* centre */
-            (*cells_ptr)[ii*params.loc_nx + jj].speeds[0] = w0;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[0] = w0;
             /* axis directions */
-            (*cells_ptr)[ii*params.loc_nx + jj].speeds[1] = w1;
-            (*cells_ptr)[ii*params.loc_nx + jj].speeds[2] = w1;
-            (*cells_ptr)[ii*params.loc_nx + jj].speeds[3] = w1;
-            (*cells_ptr)[ii*params.loc_nx + jj].speeds[4] = w1;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[1] = w1;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[2] = w1;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[3] = w1;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[4] = w1;
             /* diagonals */
-            (*cells_ptr)[ii*params.loc_nx + jj].speeds[5] = w2;
-            (*cells_ptr)[ii*params.loc_nx + jj].speeds[6] = w2;
-            (*cells_ptr)[ii*params.loc_nx + jj].speeds[7] = w2;
-            (*cells_ptr)[ii*params.loc_nx + jj].speeds[8] = w2;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[5] = w2;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[6] = w2;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[7] = w2;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[8] = w2;
         }
     }
+
+    // Allocate send/receive buffers
+    params->sendbuf = (speed_t*)malloc(sizeof(speed_t) * params->loc_ny);
+    params->recvbuf = (speed_t*)malloc(sizeof(speed_t) * params->loc_ny);
 }
 
 void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr,
