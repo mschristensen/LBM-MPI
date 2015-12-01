@@ -9,7 +9,7 @@ void timestep(const param_t params, const accel_area_t accel_area,
 {
     accelerate_flow(params,accel_area,cells,obstacles);
     propagate(params,cells,tmp_cells);
-    //rebound(params,cells,tmp_cells,obstacles);
+    rebound(params,cells,tmp_cells,obstacles);
     //collision(params,cells,tmp_cells,obstacles);
 }
 
@@ -111,23 +111,23 @@ void rebound(const param_t params, speed_t* cells, speed_t* tmp_cells, int* obst
     int ii,jj;  /* generic counters */
 
     /* loop over the cells in the grid */
-    for (ii = 0; ii < params.ny; ii++)
+    for (ii = 0; ii < params.loc_ny; ii++)
     {
-        for (jj = 0; jj < params.nx; jj++)
+        for (jj = 0; jj < params.loc_nx; jj++)
         {
             /* if the cell contains an obstacle */
             if (obstacles[ii*params.nx + (jj * (params.rank + 1))])
             {
                 /* called after propagate, so taking values from scratch space
                 ** mirroring, and writing into main grid */
-                cells[ii*params.nx + jj].speeds[1] = tmp_cells[ii*params.nx + jj].speeds[3];
-                cells[ii*params.nx + jj].speeds[2] = tmp_cells[ii*params.nx + jj].speeds[4];
-                cells[ii*params.nx + jj].speeds[3] = tmp_cells[ii*params.nx + jj].speeds[1];
-                cells[ii*params.nx + jj].speeds[4] = tmp_cells[ii*params.nx + jj].speeds[2];
-                cells[ii*params.nx + jj].speeds[5] = tmp_cells[ii*params.nx + jj].speeds[7];
-                cells[ii*params.nx + jj].speeds[6] = tmp_cells[ii*params.nx + jj].speeds[8];
-                cells[ii*params.nx + jj].speeds[7] = tmp_cells[ii*params.nx + jj].speeds[5];
-                cells[ii*params.nx + jj].speeds[8] = tmp_cells[ii*params.nx + jj].speeds[6];
+                cells[ii*params.loc_nx + (jj+1)].speeds[1] = tmp_cells[ii*params.loc_nx + (jj+1)].speeds[3];
+                cells[ii*params.loc_nx + (jj+1)].speeds[2] = tmp_cells[ii*params.loc_nx + (jj+1)].speeds[4];
+                cells[ii*params.loc_nx + (jj+1)].speeds[3] = tmp_cells[ii*params.loc_nx + (jj+1)].speeds[1];
+                cells[ii*params.loc_nx + (jj+1)].speeds[4] = tmp_cells[ii*params.loc_nx + (jj+1)].speeds[2];
+                cells[ii*params.loc_nx + (jj+1)].speeds[5] = tmp_cells[ii*params.loc_nx + (jj+1)].speeds[7];
+                cells[ii*params.loc_nx + (jj+1)].speeds[6] = tmp_cells[ii*params.loc_nx + (jj+1)].speeds[8];
+                cells[ii*params.loc_nx + (jj+1)].speeds[7] = tmp_cells[ii*params.loc_nx + (jj+1)].speeds[5];
+                cells[ii*params.loc_nx + (jj+1)].speeds[8] = tmp_cells[ii*params.loc_nx + (jj+1)].speeds[6];
             }
         }
     }
