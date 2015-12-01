@@ -56,4 +56,4 @@ submission:
 
 .PHONY: clean submission
 clean:
-	rm -f *.o $(EXE)
+	rm -f *.o $(EXE) *.btr *.cluster
