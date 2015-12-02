@@ -142,6 +142,7 @@ int main(int argc, char* argv[])
     gettimeofday(&timstr,NULL);
     tic=timstr.tv_sec+(timstr.tv_usec/1000000.0);
 
+
     for (ii = 0; ii < params.max_iters; ii++)
     {
         //TODO: -av_vels reduction

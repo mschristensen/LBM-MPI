@@ -241,17 +241,17 @@ void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr
         for (jj = 0; jj < (params->loc_nx + 2); jj++)
         {
             /* centre */
-            (*cells_ptr)[ii*params->loc_nx + jj].speeds[0] = w0;
+            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[0] = w0;
             /* axis directions */
-            (*cells_ptr)[ii*params->loc_nx + jj].speeds[1] = w1;
-            (*cells_ptr)[ii*params->loc_nx + jj].speeds[2] = w1;
-            (*cells_ptr)[ii*params->loc_nx + jj].speeds[3] = w1;
-            (*cells_ptr)[ii*params->loc_nx + jj].speeds[4] = w1;
+            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[1] = w1;
+            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[2] = w1;
+            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[3] = w1;
+            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[4] = w1;
             /* diagonals */
-            (*cells_ptr)[ii*params->loc_nx + jj].speeds[5] = w2;
-            (*cells_ptr)[ii*params->loc_nx + jj].speeds[6] = w2;
-            (*cells_ptr)[ii*params->loc_nx + jj].speeds[7] = w2;
-            (*cells_ptr)[ii*params->loc_nx + jj].speeds[8] = w2;
+            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[5] = w2;
+            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[6] = w2;
+            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[7] = w2;
+            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[8] = w2;
         }
     }
 
