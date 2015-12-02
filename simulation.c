@@ -17,26 +17,12 @@ void swap(speed_t** one, speed_t** two){
 void timestep(const param_t params, const accel_area_t accel_area,
     speed_t* cells, speed_t* tmp_cells, int* obstacles)
 {
-  // TODO: getting NAN.
-  //       Somehow I had a version where we got a visualisation but the columns were fucked up (they had like their own border obstacles)
-  //       I think that was achieved before I changed ii*params.loc_nx to ii*(params.loc_nx+2)
-  //       However I think that *may* have been down to the halo's needing exchaning whenever the cells are modified i.e. after each of the Functions
-  //       But also remember you cant halo exchange directly because what if the data is in tmp_cells rather than cells?
-  //       Regardless, currently get NAN when not even calling halo. Acc flow doesnt cause it and seems fine.
-  //       Rebound causes weird diagonal lines to be drawn on the plot in ranks 0 and 3
-  //       Collision and Rebound are hence fucking up?... Could be due to halo shit?
-  //       Maybe merge collision,rebound propagate into function I know works
-  //       Then acc flow can update the halo cols as well, no need to halo exchange
-  //       Then perform func and halo excahnge...
 
     accelerate_flow(params,accel_area,cells,obstacles);
-    halo_exchange(params,cells,tmp_cells);
     propagate(params,cells,tmp_cells);
-    halo_exchange(params,cells,tmp_cells);
     rebound(params,cells,tmp_cells,obstacles);
-    halo_exchange(params,cells,tmp_cells);
     collision(params,cells,tmp_cells,obstacles);
-    halo_exchange(params,cells,tmp_cells);
+    //halo_exchange(params,cells,tmp_cells);
     //swap(&cells,&tmp_cells);
     //if(params.rank == MASTER) printf("\n");
 }
@@ -198,6 +184,49 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
             tmp_cells[y_s*(params.loc_nx + 2) + x_w   ].speeds[7] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[7]; // south-west
             tmp_cells[y_s*(params.loc_nx + 2) + x_e   ].speeds[8] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[8]; // south-east
         }
+    }
+
+    // Communicate changes in tmp_cells to other ranks
+
+    int tag = 0;           // scope for adding extra information to a message
+    MPI_Status status;     // struct used by MPI_Recv
+
+    // send to the left, receive from right
+    for(ii = 0; ii < params.loc_ny; ii++)
+    {
+      //send to the left the left side of the left halo
+      memcpy(params.sendbuf[ii].speeds, tmp_cells[ii*(params.loc_nx+2) + 0].speeds, sizeof(float)*NSPEEDS);
+    }
+    for(ii = 0; ii < params.loc_ny; ii++) {
+      MPI_Sendrecv(params.sendbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.left, tag,
+                   params.recvbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.right,tag, MPI_COMM_WORLD, &status);
+    }
+    for(ii = 0; ii < params.loc_ny; ii++)
+    {
+      //memcpy(cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds, params.recvbuf[ii].speeds, sizeof(float)*NSPEEDS);
+      //receive on the right the left side of the right halo
+      tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds[6] = params.recvbuf[ii].speeds[6];
+      tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds[3] = params.recvbuf[ii].speeds[3];
+      tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds[7] = params.recvbuf[ii].speeds[7];
+    }
+
+    // send to the right, receive from left
+    for(ii = 0; ii < params.loc_ny; ii++)
+    {
+      // send to the right the right side of the right halo
+      memcpy(params.sendbuf[ii].speeds, tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds, sizeof(float)*NSPEEDS);
+    }
+    for(ii = 0; ii < params.loc_ny; ii++) {
+      MPI_Sendrecv(params.sendbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.right, tag,
+                   params.recvbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.left,  tag, MPI_COMM_WORLD, &status);
+    }
+    for(ii = 0; ii < params.loc_ny; ii++)
+    {
+      //memcpy(cells[ii*(params.loc_nx+2) + 0].speeds, params.recvbuf[ii].speeds, sizeof(float)*NSPEEDS);
+      // receive on the left the right side of the left halo
+      tmp_cells[ii*(params.loc_nx+2) + 0].speeds[5] = params.recvbuf[ii].speeds[5];
+      tmp_cells[ii*(params.loc_nx+2) + 0].speeds[1] = params.recvbuf[ii].speeds[1];
+      tmp_cells[ii*(params.loc_nx+2) + 0].speeds[8] = params.recvbuf[ii].speeds[8];
     }
 }
 
