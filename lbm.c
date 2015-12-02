@@ -137,16 +137,21 @@ int main(int argc, char* argv[])
 
     printf("Host %s: process %d of %d :: local_cells of size %dx%d plus halos\n", hostname, params.rank, params.size, params.loc_ny, params.loc_nx);
 
-    // TODO: Convert everything below here to MPI
-
     /* iterate for max_iters timesteps */
     gettimeofday(&timstr,NULL);
     tic=timstr.tv_sec+(timstr.tv_usec/1000000.0);
 
     for (ii = 0; ii < params.max_iters; ii++)
     {
+        //TODO: -av_vels reduction
+        //      -last calculated av_vels in calc_reynolds
+        //      -read back all cell data to big array for write_values
         timestep(params, accel_area, cells, tmp_cells, obstacles);
         av_vels[ii] = av_velocity(params, cells, obstacles);
+
+        float tot;
+        MPI_Reduce(&av_vels[ii], &tot, 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+        if(params.rank == MASTER) printf("Reduction: %f\n", tot);
 
         #ifdef DEBUG
         printf("==timestep: %d==\n", ii);
