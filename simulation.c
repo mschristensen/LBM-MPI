@@ -38,8 +38,8 @@ void halo_exchange(const param_t params, speed_t* cells, speed_t* tmp_cells)
   }
   //if(params.rank == MASTER) printf("\n");
   for(ii = 0; ii < params.loc_ny; ii++) {
-    MPI_Sendrecv(params.sendbuf[ii].speeds, params.loc_ny, MPI_FLOAT, params.left, tag,
-                 params.recvbuf[ii].speeds, params.loc_ny, MPI_FLOAT, params.right,tag, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv(params.sendbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.left, tag,
+                 params.recvbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.right,tag, MPI_COMM_WORLD, &status);
   }
   //if(params.rank == MASTER) printf("Receive from right: ");
   for(ii = 0; ii < params.loc_ny; ii++)
@@ -67,8 +67,8 @@ void halo_exchange(const param_t params, speed_t* cells, speed_t* tmp_cells)
   }
   //if(params.rank == MASTER) printf("\n");
   for(ii = 0; ii < params.loc_ny; ii++) {
-    MPI_Sendrecv(params.sendbuf[ii].speeds, params.loc_ny, MPI_FLOAT, params.right, tag,
-                 params.recvbuf[ii].speeds, params.loc_ny, MPI_FLOAT, params.left,  tag, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv(params.sendbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.right, tag,
+                 params.recvbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.left,  tag, MPI_COMM_WORLD, &status);
   }
   //if(params.rank == MASTER) printf("Receive from left: ");
   for(ii = 0; ii < params.loc_ny; ii++)
