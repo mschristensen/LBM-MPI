@@ -55,6 +55,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <string.h> //memcpy
 
 #include "lbm.h"
 #include "mpi.h"
@@ -147,17 +148,53 @@ int main(int argc, char* argv[])
         //      -last calculated av_vels in calc_reynolds
         //      -read back all cell data to big array for write_values
         timestep(params, accel_area, cells, tmp_cells, obstacles);
-        av_vels[ii] = av_velocity(params, cells, obstacles);
+        float av_vel;
+        av_vel = av_velocity(params, cells, obstacles);
 
-        float tot;
-        MPI_Reduce(&av_vels[ii], &tot, 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
-        if(params.rank == MASTER) printf("Reduction: %f\n", tot);
+        MPI_Reduce(&av_vel, &(av_vels[ii]), 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+        //if(params.rank == MASTER) printf("Reduction: %f\n", tot);
 
         #ifdef DEBUG
         printf("==timestep: %d==\n", ii);
         printf("av velocity: %.12E\n", av_vels[ii]);
         printf("tot density: %.12E\n", total_density(params, cells));
         #endif
+    }
+
+    // Final read back of all cell data
+    //TODO this below malloc is made by all threads... but it needs to be freed
+    speed_t* final_cells = (speed_t*)malloc(sizeof(speed_t) * params.nx * params.ny);
+    int tag, jj, kk;
+    MPI_Status status;     // struct used by MPI_Recv
+    if(params.rank == MASTER) {
+      // Master first copies his data to the final array
+      for (ii = 0; ii < params.loc_ny; ii++)
+      {
+        for (jj = 0; jj < params.loc_nx; jj++)
+        {
+          memcpy(final_cells[ii*params.nx + (jj + (params.rank * params.loc_nx))].speeds, cells[ii*params.loc_nx + (jj+1)].speeds, sizeof(float)*NSPEEDS);
+        }
+      }
+
+      // Then he reads data from each of the other ranks and writes that
+      for(kk = 1; kk < params.size; kk++) {
+        for (ii = 0; ii < params.loc_ny; ii++)
+        {
+          for (jj = 0; jj < params.loc_nx; jj++)
+          {
+            MPI_Recv(final_cells[ii*params.nx + (jj + (kk * params.loc_nx))].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
+          }
+        }
+      }
+    } else {
+      // Non-master ranks send all their data (not the halos) to master
+      for (ii = 0; ii < params.loc_ny; ii++)
+      {
+        for (jj = 0; jj < params.loc_nx; jj++)
+        {
+          MPI_Send(cells[ii*params.loc_nx + (jj+1)].speeds, NSPEEDS, MPI_FLOAT, MASTER, tag, MPI_COMM_WORLD);
+        }
+      }
     }
 
     gettimeofday(&timstr,NULL);
@@ -168,11 +205,19 @@ int main(int argc, char* argv[])
     timstr=ru.ru_stime;
     systim=timstr.tv_sec+(timstr.tv_usec/1000000.0);
 
-    printf("==done==\n");
-    printf("Reynolds number:\t\t%.12E\n", calc_reynolds(params,cells,obstacles));
-    printf("Elapsed time:\t\t\t%.6f (s)\n", toc-tic);
-    printf("Elapsed user CPU time:\t\t%.6f (s)\n", usrtim);
-    printf("Elapsed system CPU time:\t%.6f (s)\n", systim);
+    if(params.rank == MASTER)
+    {
+      printf("==done==\n");
+      printf("Reynolds number:\t\t%.12E\n", calc_reynolds(params,final_cells,obstacles));
+      printf("Elapsed time:\t\t\t%.6f (s)\n", toc-tic);
+      printf("Elapsed user CPU time:\t\t%.6f (s)\n", usrtim);
+      printf("Elapsed system CPU time:\t%.6f (s)\n", systim);
+
+      printf("Writing results...\n");
+      write_values(final_state_file, av_vels_file, params, final_cells, obstacles, av_vels);
+    } else {
+      printf("Host %s: process %d of %d :: Elapsed time:\t\t\t%.6f (s)\n", hostname, params.rank, params.size, toc-tic);
+    }
 
     // Finalize MPI environment.
     MPI_Finalize();
@@ -182,11 +227,8 @@ int main(int argc, char* argv[])
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    //TODO: cannot write results directly, need to collect data back to master
-    printf("Writing results...\n");
-    write_values(final_state_file, av_vels_file, params, cells, obstacles, av_vels);
     finalise(&cells, &tmp_cells, &obstacles, &av_vels);
-
+    free(final_cells);
     return EXIT_SUCCESS;
 }
 
