@@ -161,28 +161,35 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
     // loop over local cells
     for (ii = 0; ii < params.loc_ny; ii++)
     {
-        for (jj = 0; jj < params.loc_nx; jj++)
+        for (jj = 0; jj < params.loc_nx + 2; jj++)
         {
             int x_e,x_w,y_n,y_s;  // indices of neighbouring cells
             // determine indices of axis-direction neighbours
             // which will be in the halos if 'out of bounds' in the x-direction
             // or wrap around if 'out of bounds' in the y-direction
             y_n = (ii + 1) % params.loc_ny;
-            x_e = ((jj+1) + 1);
+            x_e = ((jj) + 1);
             y_s = (ii == 0) ? (ii + params.loc_ny - 1) : (ii - 1);
-            x_w = ((jj+1) - 1);
+            x_w = ((jj) - 1);
             /* propagate densities to neighbouring cells, following
             ** appropriate directions of travel and writing into
             ** scratch space grid */
-            tmp_cells[ii *(params.loc_nx + 2) + (jj+1)].speeds[0] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[0]; // central cell
-            tmp_cells[ii *(params.loc_nx + 2) + x_e   ].speeds[1] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[1]; // east
-            tmp_cells[y_n*(params.loc_nx + 2) + (jj+1)].speeds[2] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[2]; // north
-            tmp_cells[ii *(params.loc_nx + 2) + x_w   ].speeds[3] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[3]; // west
-            tmp_cells[y_s*(params.loc_nx + 2) + (jj+1)].speeds[4] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[4]; // south
-            tmp_cells[y_n*(params.loc_nx + 2) + x_e   ].speeds[5] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[5]; // north-east
-            tmp_cells[y_n*(params.loc_nx + 2) + x_w   ].speeds[6] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[6]; // north-west
-            tmp_cells[y_s*(params.loc_nx + 2) + x_w   ].speeds[7] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[7]; // south-west
-            tmp_cells[y_s*(params.loc_nx + 2) + x_e   ].speeds[8] = cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[8]; // south-east
+            if(jj != 0 && jj != params.loc_nx + 1)
+            {
+              tmp_cells[ii *(params.loc_nx + 2) + (jj)].speeds[0] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[0]; // central cell
+              tmp_cells[ii *(params.loc_nx + 2) + x_e   ].speeds[1] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[1]; // east
+              tmp_cells[y_n*(params.loc_nx + 2) + (jj)].speeds[2] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[2]; // north
+              tmp_cells[ii *(params.loc_nx + 2) + x_w   ].speeds[3] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[3]; // west
+              tmp_cells[y_s*(params.loc_nx + 2) + (jj)].speeds[4] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[4]; // south
+              tmp_cells[y_n*(params.loc_nx + 2) + x_e   ].speeds[5] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[5]; // north-east
+              tmp_cells[y_n*(params.loc_nx + 2) + x_w   ].speeds[6] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[6]; // north-west
+              tmp_cells[y_s*(params.loc_nx + 2) + x_w   ].speeds[7] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[7]; // south-west
+              tmp_cells[y_s*(params.loc_nx + 2) + x_e   ].speeds[8] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[8]; // south-east
+            } else {
+              tmp_cells[ii *(params.loc_nx + 2) + (jj)].speeds[0] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[0]; // central cell
+              tmp_cells[y_n*(params.loc_nx + 2) + (jj)].speeds[2] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[2]; // north
+              tmp_cells[y_s*(params.loc_nx + 2) + (jj)].speeds[4] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[4]; // south
+            }
         }
     }
 
