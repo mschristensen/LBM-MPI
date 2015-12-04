@@ -154,6 +154,7 @@ int main(int argc, char* argv[])
 
         MPI_Reduce(&av_vel, &(av_vels[ii]), 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
         //if(params.rank == MASTER) printf("Reduction: %f\n", tot);
+        //if(ii == 5) break;
 
         #ifdef DEBUG
         printf("==timestep: %d==\n", ii);
