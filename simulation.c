@@ -23,17 +23,17 @@ void timestep(const param_t params, const accel_area_t accel_area,
     int ii,jj,kk;
     for (ii = 0; ii < params.loc_ny; ii++)
     {
-      for (jj = 0; jj < params.loc_nx + 2; jj++)
+      for (jj = 0; jj < params.loc_nx; jj++)
       {
         for(kk = 0; kk < NSPEEDS; kk++) {
-          if(tmp_cells[ii*(params.loc_nx + 2) + jj].speeds[kk] == -1.0) {
+          if(tmp_cells[ii*params.loc_nx + jj].speeds[kk] == -1.0) {
             printf("MINUS ONE IN TMP AT %d %d %d\n", ii, jj, kk);
           }
         }
       }
     }
-    //rebound(params,cells,tmp_cells,obstacles);
-    //collision(params,cells,tmp_cells,obstacles);
+    rebound(params,cells,tmp_cells,obstacles);
+    collision(params,cells,tmp_cells,obstacles);
     //halo_exchange(params,cells,tmp_cells);
     //swap(&cells,&tmp_cells);
     //if(params.rank == MASTER) printf("\n");
@@ -59,18 +59,18 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
             // if the cell is not occupied and
             // we don't send a density negative
             if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))] &&
-            (cells[ii*(params.loc_nx + 2) + jj].speeds[4] - w1) > 0.0 &&
-            (cells[ii*(params.loc_nx + 2) + jj].speeds[7] - w2) > 0.0 &&
-            (cells[ii*(params.loc_nx + 2) + jj].speeds[8] - w2) > 0.0 )
+            (cells[ii*params.loc_nx + jj].speeds[4] - w1) > 0.0 &&
+            (cells[ii*params.loc_nx + jj].speeds[7] - w2) > 0.0 &&
+            (cells[ii*params.loc_nx + jj].speeds[8] - w2) > 0.0 )
             {
                 // increase 'north-side' densities
-                cells[ii*(params.loc_nx + 2) + jj].speeds[2] += w1;
-                cells[ii*(params.loc_nx + 2) + jj].speeds[5] += w2;
-                cells[ii*(params.loc_nx + 2) + jj].speeds[6] += w2;
+                cells[ii*params.loc_nx + jj].speeds[2] += w1;
+                cells[ii*params.loc_nx + jj].speeds[5] += w2;
+                cells[ii*params.loc_nx + jj].speeds[6] += w2;
                 // decrease 'south-side' densities
-                cells[ii*(params.loc_nx + 2) + jj].speeds[4] -= w1;
-                cells[ii*(params.loc_nx + 2) + jj].speeds[7] -= w2;
-                cells[ii*(params.loc_nx + 2) + jj].speeds[8] -= w2;
+                cells[ii*params.loc_nx + jj].speeds[4] -= w1;
+                cells[ii*params.loc_nx + jj].speeds[7] -= w2;
+                cells[ii*params.loc_nx + jj].speeds[8] -= w2;
             }
         }
     }
@@ -83,18 +83,18 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
             // if the cell is not occupied and
             // we don't send a density negative
             if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))] &&
-            (cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[3] - w1) > 0.0 &&
-            (cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[6] - w2) > 0.0 &&
-            (cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[7] - w2) > 0.0 )
+            (cells[ii*params.loc_nx + jj].speeds[3] - w1) > 0.0 &&
+            (cells[ii*params.loc_nx + jj].speeds[6] - w2) > 0.0 &&
+            (cells[ii*params.loc_nx + jj].speeds[7] - w2) > 0.0 )
             {
                 // increase 'east-side' densities
-                cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[1] += w1;
-                cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[5] += w2;
-                cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[8] += w2;
+                cells[ii*params.loc_nx + jj].speeds[1] += w1;
+                cells[ii*params.loc_nx + jj].speeds[5] += w2;
+                cells[ii*params.loc_nx + jj].speeds[8] += w2;
                 // decrease 'west-side' densities
-                cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[3] -= w1;
-                cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[6] -= w2;
-                cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[7] -= w2;
+                cells[ii*params.loc_nx + jj].speeds[3] -= w1;
+                cells[ii*params.loc_nx + jj].speeds[6] -= w2;
+                cells[ii*params.loc_nx + jj].speeds[7] -= w2;
             }
         }
     }
@@ -111,7 +111,7 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
     // loop over local cells
     for (ii = 0; ii < params.loc_ny; ii++)
     {
-        for (jj = 0; jj < params.loc_nx + 2; jj++)
+        for (jj = 0; jj < params.loc_nx; jj++)
         {
             int x_e,x_w,y_n,y_s;  // indices of neighbouring cells
             // determine indices of axis-direction neighbours
@@ -126,42 +126,42 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
             ** scratch space grid */
             if(jj == 0)
             {
-              tmp_cells[ii *(params.loc_nx + 2) + (jj)].speeds[0] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[0]; // central cell
-              tmp_cells[ii *(params.loc_nx + 2) + x_e   ].speeds[1] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[1]; // east
-              tmp_cells[y_n*(params.loc_nx + 2) + (jj)].speeds[2] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[2]; // north
-              tmp_cells[y_s*(params.loc_nx + 2) + (jj)].speeds[4] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[4]; // south
-              tmp_cells[y_n*(params.loc_nx + 2) + x_e   ].speeds[5] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[5]; // north-east
-              tmp_cells[y_s*(params.loc_nx + 2) + x_e   ].speeds[8] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[8]; // south-east
+              tmp_cells[ii *params.loc_nx + (jj)].speeds[0] = cells[ii*params.loc_nx + (jj)].speeds[0]; // central cell
+              tmp_cells[ii *params.loc_nx + x_e   ].speeds[1] = cells[ii*params.loc_nx + (jj)].speeds[1]; // east
+              tmp_cells[y_n*params.loc_nx + (jj)].speeds[2] = cells[ii*params.loc_nx + (jj)].speeds[2]; // north
+              tmp_cells[y_s*params.loc_nx + (jj)].speeds[4] = cells[ii*params.loc_nx + (jj)].speeds[4]; // south
+              tmp_cells[y_n*params.loc_nx + x_e   ].speeds[5] = cells[ii*params.loc_nx + (jj)].speeds[5]; // north-east
+              tmp_cells[y_s*params.loc_nx + x_e   ].speeds[8] = cells[ii*params.loc_nx + (jj)].speeds[8]; // south-east
 
-              sendbuf_l[y_n * 3 + 0] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[6]; // north-west
-              sendbuf_l[ii  * 3 + 1] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[3]; // west
-              sendbuf_l[y_s * 3 + 2] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[7]; // south-west
-            } else if(jj == params.loc_nx + 1) {
-              tmp_cells[ii *(params.loc_nx + 2) + (jj)].speeds[0] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[0]; // central cell
-              tmp_cells[y_n*(params.loc_nx + 2) + (jj)].speeds[2] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[2]; // north
-              tmp_cells[ii *(params.loc_nx + 2) + x_w   ].speeds[3] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[3]; // west
-              tmp_cells[y_s*(params.loc_nx + 2) + (jj)].speeds[4] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[4]; // south
-              tmp_cells[y_n*(params.loc_nx + 2) + x_w   ].speeds[6] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[6]; // north-west
-              tmp_cells[y_s*(params.loc_nx + 2) + x_w   ].speeds[7] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[7]; // south-west
+              sendbuf_l[y_n * 3 + 0] = cells[ii*params.loc_nx + (jj)].speeds[6]; // north-west
+              sendbuf_l[ii  * 3 + 1] = cells[ii*params.loc_nx + (jj)].speeds[3]; // west
+              sendbuf_l[y_s * 3 + 2] = cells[ii*params.loc_nx + (jj)].speeds[7]; // south-west
+            } else if(jj == params.loc_nx - 1) {
+              tmp_cells[ii *params.loc_nx + (jj)].speeds[0] = cells[ii*params.loc_nx + (jj)].speeds[0]; // central cell
+              tmp_cells[y_n*params.loc_nx + (jj)].speeds[2] = cells[ii*params.loc_nx + (jj)].speeds[2]; // north
+              tmp_cells[ii *params.loc_nx + x_w   ].speeds[3] = cells[ii*params.loc_nx + (jj)].speeds[3]; // west
+              tmp_cells[y_s*params.loc_nx + (jj)].speeds[4] = cells[ii*params.loc_nx + (jj)].speeds[4]; // south
+              tmp_cells[y_n*params.loc_nx + x_w   ].speeds[6] = cells[ii*params.loc_nx + (jj)].speeds[6]; // north-west
+              tmp_cells[y_s*params.loc_nx + x_w   ].speeds[7] = cells[ii*params.loc_nx + (jj)].speeds[7]; // south-west
 
-              sendbuf_r[y_n * 3 + 0] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[5]; // north-east
-              sendbuf_r[ii  * 3 + 1] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[1]; // east
-              sendbuf_r[y_s * 3 + 2] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[8]; // south-east
+              sendbuf_r[y_n * 3 + 0] = cells[ii*params.loc_nx + (jj)].speeds[5]; // north-east
+              sendbuf_r[ii  * 3 + 1] = cells[ii*params.loc_nx + (jj)].speeds[1]; // east
+              sendbuf_r[y_s * 3 + 2] = cells[ii*params.loc_nx + (jj)].speeds[8]; // south-east
             } else {
-              tmp_cells[ii *(params.loc_nx + 2) + (jj)].speeds[0] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[0]; // central cell
-              tmp_cells[ii *(params.loc_nx + 2) + x_e   ].speeds[1] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[1]; // east
-              tmp_cells[y_n*(params.loc_nx + 2) + (jj)].speeds[2] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[2]; // north
-              tmp_cells[ii *(params.loc_nx + 2) + x_w   ].speeds[3] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[3]; // west
-              tmp_cells[y_s*(params.loc_nx + 2) + (jj)].speeds[4] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[4]; // south
-              tmp_cells[y_n*(params.loc_nx + 2) + x_e   ].speeds[5] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[5]; // north-east
-              tmp_cells[y_n*(params.loc_nx + 2) + x_w   ].speeds[6] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[6]; // north-west
-              tmp_cells[y_s*(params.loc_nx + 2) + x_w   ].speeds[7] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[7]; // south-west
-              tmp_cells[y_s*(params.loc_nx + 2) + x_e   ].speeds[8] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[8]; // south-east
+              tmp_cells[ii *params.loc_nx + (jj)].speeds[0] = cells[ii*params.loc_nx + (jj)].speeds[0]; // central cell
+              tmp_cells[ii *params.loc_nx + x_e   ].speeds[1] = cells[ii*params.loc_nx + (jj)].speeds[1]; // east
+              tmp_cells[y_n*params.loc_nx + (jj)].speeds[2] = cells[ii*params.loc_nx + (jj)].speeds[2]; // north
+              tmp_cells[ii *params.loc_nx + x_w   ].speeds[3] = cells[ii*params.loc_nx + (jj)].speeds[3]; // west
+              tmp_cells[y_s*params.loc_nx + (jj)].speeds[4] = cells[ii*params.loc_nx + (jj)].speeds[4]; // south
+              tmp_cells[y_n*params.loc_nx + x_e   ].speeds[5] = cells[ii*params.loc_nx + (jj)].speeds[5]; // north-east
+              tmp_cells[y_n*params.loc_nx + x_w   ].speeds[6] = cells[ii*params.loc_nx + (jj)].speeds[6]; // north-west
+              tmp_cells[y_s*params.loc_nx + x_w   ].speeds[7] = cells[ii*params.loc_nx + (jj)].speeds[7]; // south-west
+              tmp_cells[y_s*params.loc_nx + x_e   ].speeds[8] = cells[ii*params.loc_nx + (jj)].speeds[8]; // south-east
             }
             //} else {
-            //  tmp_cells[ii *(params.loc_nx + 2) + (jj)].speeds[0] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[0]; // central cell
-            //  tmp_cells[y_n*(params.loc_nx + 2) + (jj)].speeds[2] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[2]; // north
-            //  tmp_cells[y_s*(params.loc_nx + 2) + (jj)].speeds[4] = cells[ii*(params.loc_nx + 2) + (jj)].speeds[4]; // south
+            //  tmp_cells[ii *params.loc_nx + (jj)].speeds[0] = cells[ii*params.loc_nx + (jj)].speeds[0]; // central cell
+            //  tmp_cells[y_n*params.loc_nx + (jj)].speeds[2] = cells[ii*params.loc_nx + (jj)].speeds[2]; // north
+            //  tmp_cells[y_s*params.loc_nx + (jj)].speeds[4] = cells[ii*params.loc_nx + (jj)].speeds[4]; // south
             //}
         }
     }
@@ -175,9 +175,9 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
 
     for(ii = 0; ii < params.loc_ny; ii++)
     {
-      tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds[6] = recvbuf_r[ii * 3 + 0];
-      tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds[3] = recvbuf_r[ii * 3 + 1];
-      tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds[7] = recvbuf_r[ii * 3 + 2];
+      tmp_cells[ii*params.loc_nx + params.loc_nx - 1].speeds[6] = recvbuf_r[ii * 3 + 0];
+      tmp_cells[ii*params.loc_nx + params.loc_nx - 1].speeds[3] = recvbuf_r[ii * 3 + 1];
+      tmp_cells[ii*params.loc_nx + params.loc_nx - 1].speeds[7] = recvbuf_r[ii * 3 + 2];
     }
 
     // send to the right, receive from left
@@ -185,9 +185,9 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
                  recvbuf_l, params.loc_ny * 3, MPI_FLOAT, params.left,  tag, MPI_COMM_WORLD, &status);
     for(ii = 0; ii < params.loc_ny; ii++)
     {
-      tmp_cells[ii*(params.loc_nx+2) + 0].speeds[5] = recvbuf_l[ii * 3 + 0];
-      tmp_cells[ii*(params.loc_nx+2) + 0].speeds[1] = recvbuf_l[ii * 3 + 1];
-      tmp_cells[ii*(params.loc_nx+2) + 0].speeds[8] = recvbuf_l[ii * 3 + 2];
+      tmp_cells[ii*params.loc_nx + 0].speeds[5] = recvbuf_l[ii * 3 + 0];
+      tmp_cells[ii*params.loc_nx + 0].speeds[1] = recvbuf_l[ii * 3 + 1];
+      tmp_cells[ii*params.loc_nx + 0].speeds[8] = recvbuf_l[ii * 3 + 2];
     }
 
 
@@ -265,23 +265,23 @@ void rebound(const param_t params, speed_t* cells, speed_t* tmp_cells, int* obst
     /* loop over the cells in the grid */
     for (ii = 0; ii < params.loc_ny; ii++)
     {
-        for (jj = 0; jj < params.loc_nx + 2; jj++)
+        for (jj = 0; jj < params.loc_nx; jj++)
         {
             /* if the cell contains an obstacle */
-            int obs_jj = jj-1;
-            int obs_idx = (obs_jj < 0 && params.rank == MASTER) ? params.nx-1 : (ii*params.nx + (obs_jj + (params.rank * params.loc_nx))) % params.nx;
-            if (obstacles[obs_idx])//ii*params.nx + (obs_jj + (params.rank * params.loc_nx))])
+            //int obs_jj = jj-1;
+            //int obs_idx = (obs_jj < 0 && params.rank == MASTER) ? params.nx-1 : (ii*params.nx + (obs_jj + (params.rank * params.loc_nx))) % params.nx;
+            if (obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))])//ii*params.nx + (obs_jj + (params.rank * params.loc_nx))])
             {
                 /* called after propagate, so taking values from scratch space
                 ** mirroring, and writing into main grid */
-                cells[ii*(params.loc_nx + 2) + (jj)].speeds[1] = tmp_cells[ii*(params.loc_nx + 2) + (jj)].speeds[3];
-                cells[ii*(params.loc_nx + 2) + (jj)].speeds[2] = tmp_cells[ii*(params.loc_nx + 2) + (jj)].speeds[4];
-                cells[ii*(params.loc_nx + 2) + (jj)].speeds[3] = tmp_cells[ii*(params.loc_nx + 2) + (jj)].speeds[1];
-                cells[ii*(params.loc_nx + 2) + (jj)].speeds[4] = tmp_cells[ii*(params.loc_nx + 2) + (jj)].speeds[2];
-                cells[ii*(params.loc_nx + 2) + (jj)].speeds[5] = tmp_cells[ii*(params.loc_nx + 2) + (jj)].speeds[7];
-                cells[ii*(params.loc_nx + 2) + (jj)].speeds[6] = tmp_cells[ii*(params.loc_nx + 2) + (jj)].speeds[8];
-                cells[ii*(params.loc_nx + 2) + (jj)].speeds[7] = tmp_cells[ii*(params.loc_nx + 2) + (jj)].speeds[5];
-                cells[ii*(params.loc_nx + 2) + (jj)].speeds[8] = tmp_cells[ii*(params.loc_nx + 2) + (jj)].speeds[6];
+                cells[ii*params.loc_nx + (jj)].speeds[1] = tmp_cells[ii*params.loc_nx + (jj)].speeds[3];
+                cells[ii*params.loc_nx + (jj)].speeds[2] = tmp_cells[ii*params.loc_nx + (jj)].speeds[4];
+                cells[ii*params.loc_nx + (jj)].speeds[3] = tmp_cells[ii*params.loc_nx + (jj)].speeds[1];
+                cells[ii*params.loc_nx + (jj)].speeds[4] = tmp_cells[ii*params.loc_nx + (jj)].speeds[2];
+                cells[ii*params.loc_nx + (jj)].speeds[5] = tmp_cells[ii*params.loc_nx + (jj)].speeds[7];
+                cells[ii*params.loc_nx + (jj)].speeds[6] = tmp_cells[ii*params.loc_nx + (jj)].speeds[8];
+                cells[ii*params.loc_nx + (jj)].speeds[7] = tmp_cells[ii*params.loc_nx + (jj)].speeds[5];
+                cells[ii*params.loc_nx + (jj)].speeds[8] = tmp_cells[ii*params.loc_nx + (jj)].speeds[6];
             }
         }
     }
@@ -317,25 +317,25 @@ void collision(const param_t params, speed_t* cells, speed_t* tmp_cells, int* ob
 
                 for (kk = 0; kk < NSPEEDS; kk++)
                 {
-                    local_density += tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[kk];
+                    local_density += tmp_cells[ii*params.loc_nx + jj].speeds[kk];
                 }
 
                 /* compute x velocity component */
-                u_x = (tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[1] +
-                        tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[5] +
-                        tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[8]
-                    - (tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[3] +
-                        tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[6] +
-                        tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[7]))
+                u_x = (tmp_cells[ii*params.loc_nx + jj].speeds[1] +
+                        tmp_cells[ii*params.loc_nx + jj].speeds[5] +
+                        tmp_cells[ii*params.loc_nx + jj].speeds[8]
+                    - (tmp_cells[ii*params.loc_nx + jj].speeds[3] +
+                        tmp_cells[ii*params.loc_nx + jj].speeds[6] +
+                        tmp_cells[ii*params.loc_nx + jj].speeds[7]))
                     / local_density;
 
                 /* compute y velocity component */
-                u_y = (tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[2] +
-                        tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[5] +
-                        tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[6]
-                    - (tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[4] +
-                        tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[7] +
-                        tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[8]))
+                u_y = (tmp_cells[ii*params.loc_nx + jj].speeds[2] +
+                        tmp_cells[ii*params.loc_nx + jj].speeds[5] +
+                        tmp_cells[ii*params.loc_nx + jj].speeds[6]
+                    - (tmp_cells[ii*params.loc_nx + jj].speeds[4] +
+                        tmp_cells[ii*params.loc_nx + jj].speeds[7] +
+                        tmp_cells[ii*params.loc_nx + jj].speeds[8]))
                     / local_density;
 
                 /* velocity squared */
@@ -384,9 +384,9 @@ void collision(const param_t params, speed_t* cells, speed_t* tmp_cells, int* ob
                 /* relaxation step */
                 for (kk = 0; kk < NSPEEDS; kk++)
                 {
-                    cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[kk] =
-                        (tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[kk] + params.omega *
-                        (d_equ[kk] - tmp_cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[kk]));
+                    cells[ii*params.loc_nx + jj].speeds[kk] =
+                        (tmp_cells[ii*params.loc_nx + jj].speeds[kk] + params.omega *
+                        (d_equ[kk] - tmp_cells[ii*params.loc_nx + jj].speeds[kk]));
                 }
             }
         }
@@ -419,25 +419,25 @@ float av_velocity(const param_t params, speed_t* cells, int* obstacles)
 
                 for (kk = 0; kk < NSPEEDS; kk++)
                 {
-                    local_density += cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[kk];
+                    local_density += cells[ii*params.loc_nx + jj].speeds[kk];
                 }
 
                 // x-component of velocity
-                u_x = (cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[1] +
-                        cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[5] +
-                        cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[8]
-                    - (cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[3] +
-                        cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[6] +
-                        cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[7])) /
+                u_x = (cells[ii*params.loc_nx + jj].speeds[1] +
+                        cells[ii*params.loc_nx + jj].speeds[5] +
+                        cells[ii*params.loc_nx + jj].speeds[8]
+                    - (cells[ii*params.loc_nx + jj].speeds[3] +
+                        cells[ii*params.loc_nx + jj].speeds[6] +
+                        cells[ii*params.loc_nx + jj].speeds[7])) /
                     local_density;
 
                 // compute y velocity component
-                u_y = (cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[2] +
-                        cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[5] +
-                        cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[6]
-                    - (cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[4] +
-                        cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[7] +
-                        cells[ii*(params.loc_nx + 2) + (jj+1)].speeds[8])) /
+                u_y = (cells[ii*params.loc_nx + jj].speeds[2] +
+                        cells[ii*params.loc_nx + jj].speeds[5] +
+                        cells[ii*params.loc_nx + jj].speeds[6]
+                    - (cells[ii*params.loc_nx + jj].speeds[4] +
+                        cells[ii*params.loc_nx + jj].speeds[7] +
+                        cells[ii*params.loc_nx + jj].speeds[8])) /
                     local_density;
 
                 // accumulate the norm of x- and y- velocity components

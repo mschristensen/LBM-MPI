@@ -224,11 +224,11 @@ void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr
     float w0,w1,w2;       /* weighting factors */
 
     /* Allocate arrays, including halo space */
-    printf("Allocating %d rows * %d cols.\n", params->loc_ny, params->loc_nx + 2);
-    *cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->loc_ny * (params->loc_nx + 2)));
+    printf("Allocating %d rows * %d cols.\n", params->loc_ny, params->loc_nx);
+    *cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->loc_ny * params->loc_nx));
     if (*cells_ptr == NULL) DIE("Cannot allocate memory for cells");
 
-    *tmp_cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->loc_ny * (params->loc_nx + 2)));
+    *tmp_cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->loc_ny * params->loc_nx));
     if (*tmp_cells_ptr == NULL) DIE("Cannot allocate memory for tmp_cells");
 
     w0 = params->density * 4.0/9.0;
@@ -238,34 +238,34 @@ void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr
     /* Initialise arrays */
     for (ii = 0; ii < params->loc_ny; ii++)
     {
-        for (jj = 0; jj < (params->loc_nx + 2); jj++)
+        for (jj = 0; jj < params->loc_nx; jj++)
         {
             /* centre */
-            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[0] = w0;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[0] = w0;
             /* axis directions */
-            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[1] = w1;
-            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[2] = w1;
-            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[3] = w1;
-            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[4] = w1;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[1] = w1;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[2] = w1;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[3] = w1;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[4] = w1;
             /* diagonals */
-            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[5] = w2;
-            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[6] = w2;
-            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[7] = w2;
-            (*cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[8] = w2;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[5] = w2;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[6] = w2;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[7] = w2;
+            (*cells_ptr)[ii*params->loc_nx + jj].speeds[8] = w2;
 
             // TODO: remove: initialising all for debug purposes
             // centre
-            (*tmp_cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[0] = -1.0;
+            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[0] = -1.0;
             // axis directions
-            (*tmp_cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[1] = -1.0;
-            (*tmp_cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[2] = -1.0;
-            (*tmp_cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[3] = -1.0;
-            (*tmp_cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[4] = -1.0;
+            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[1] = -1.0;
+            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[2] = -1.0;
+            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[3] = -1.0;
+            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[4] = -1.0;
             // diagonals
-            (*tmp_cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[5] = -1.0;
-            (*tmp_cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[6] = -1.0;
-            (*tmp_cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[7] = -1.0;
-            (*tmp_cells_ptr)[ii*(params->loc_nx + 2) + jj].speeds[8] = -1.0;
+            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[5] = -1.0;
+            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[6] = -1.0;
+            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[7] = -1.0;
+            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[8] = -1.0;
 
         }
     }

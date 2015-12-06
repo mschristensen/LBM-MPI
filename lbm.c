@@ -174,7 +174,7 @@ int main(int argc, char* argv[])
       {
         for (jj = 0; jj < params.loc_nx; jj++)
         {
-          memcpy(final_cells[ii*params.nx + (jj + (params.rank * params.loc_nx))].speeds, cells[ii*params.loc_nx + (jj+1)].speeds, sizeof(float)*NSPEEDS);
+          memcpy(final_cells[ii*params.nx + (jj + (params.rank * params.loc_nx))].speeds, cells[ii*params.loc_nx + jj].speeds, sizeof(float)*NSPEEDS);
         }
       }
 
@@ -194,7 +194,7 @@ int main(int argc, char* argv[])
       {
         for (jj = 0; jj < params.loc_nx; jj++)
         {
-          MPI_Send(cells[ii*params.loc_nx + (jj+1)].speeds, NSPEEDS, MPI_FLOAT, MASTER, tag, MPI_COMM_WORLD);
+          MPI_Send(cells[ii*params.loc_nx + jj].speeds, NSPEEDS, MPI_FLOAT, MASTER, tag, MPI_COMM_WORLD);
         }
       }
     }
