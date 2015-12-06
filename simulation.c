@@ -34,9 +34,6 @@ void timestep(const param_t params, const accel_area_t accel_area,
     }
     rebound(params,cells,tmp_cells,obstacles);
     collision(params,cells,tmp_cells,obstacles);
-    //halo_exchange(params,cells,tmp_cells);
-    //swap(&cells,&tmp_cells);
-    //if(params.rank == MASTER) printf("\n");
 }
 
 //TODO: set indices may not be in local range??
@@ -158,11 +155,6 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
               tmp_cells[y_s*params.loc_nx + x_w   ].speeds[7] = cells[ii*params.loc_nx + (jj)].speeds[7]; // south-west
               tmp_cells[y_s*params.loc_nx + x_e   ].speeds[8] = cells[ii*params.loc_nx + (jj)].speeds[8]; // south-east
             }
-            //} else {
-            //  tmp_cells[ii *params.loc_nx + (jj)].speeds[0] = cells[ii*params.loc_nx + (jj)].speeds[0]; // central cell
-            //  tmp_cells[y_n*params.loc_nx + (jj)].speeds[2] = cells[ii*params.loc_nx + (jj)].speeds[2]; // north
-            //  tmp_cells[y_s*params.loc_nx + (jj)].speeds[4] = cells[ii*params.loc_nx + (jj)].speeds[4]; // south
-            //}
         }
     }
 
@@ -189,73 +181,6 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
       tmp_cells[ii*params.loc_nx + 0].speeds[1] = recvbuf_l[ii * 3 + 1];
       tmp_cells[ii*params.loc_nx + 0].speeds[8] = recvbuf_l[ii * 3 + 2];
     }
-
-
-    // Communicate changes in tmp_cells to other ranks
-/*
-    int tag = 0;           // scope for adding extra information to a message
-    MPI_Status status;     // struct used by MPI_Recv
-
-    // send to the left, receive from right
-    //if(params.rank == 2) printf("LEFT HALO :: LEFT VALUES (TO SEND):\n");
-    for(ii = 0; ii < params.loc_ny; ii++)
-    {
-      //send to the left the left side of the left halo
-      memcpy(params.sendbuf[ii].speeds, tmp_cells[ii*(params.loc_nx+2) + 0].speeds, sizeof(float)*NSPEEDS);
-      //if(params.rank == 2) printf("%f %f %f\n", params.sendbuf[ii].speeds[6], params.sendbuf[ii].speeds[3], params.sendbuf[ii].speeds[7]);
-    }
-    for(ii = 0; ii < params.loc_ny; ii++) {
-      MPI_Sendrecv(params.sendbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.left, tag,
-                   params.recvbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.right,tag, MPI_COMM_WORLD, &status);
-    }
-    //if(params.rank == 2) printf("RIGHT HALO :: LEFT VALUES (RECEIVED):\n");
-    for(ii = 0; ii < params.loc_ny; ii++)
-    {
-      //memcpy(cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds, params.recvbuf[ii].speeds, sizeof(float)*NSPEEDS);
-      //receive on the right the left side of the right halo
-      //if(params.rank == 2) printf("%f %f %f\n", params.recvbuf[ii].speeds[6], params.recvbuf[ii].speeds[3], params.recvbuf[ii].speeds[7]);
-      tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds[6] = params.recvbuf[ii].speeds[6];
-      tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds[3] = params.recvbuf[ii].speeds[3];
-      tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds[7] = params.recvbuf[ii].speeds[7];
-    }
-
-    // send to the right, receive from left
-    //if(params.rank == 2) printf("RIGHT HALO :: RIGHT VALUES (TO SEND):\n");
-    for(ii = 0; ii < params.loc_ny; ii++)
-    {
-      // send to the right the right side of the right halo
-      memcpy(params.sendbuf[ii].speeds, tmp_cells[ii*(params.loc_nx+2) + params.loc_nx + 1].speeds, sizeof(float)*NSPEEDS);
-      //if(params.rank == 2) printf("%f %f %f\n", params.sendbuf[ii].speeds[5], params.sendbuf[ii].speeds[1], params.sendbuf[ii].speeds[8]);
-    }
-    for(ii = 0; ii < params.loc_ny; ii++) {
-      MPI_Sendrecv(params.sendbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.right, tag,
-                   params.recvbuf[ii].speeds, NSPEEDS, MPI_FLOAT, params.left,  tag, MPI_COMM_WORLD, &status);
-    }
-    //if(params.rank == 2) printf("LEFT HALO :: RIGHT VALUES (RECEIVED):\n");
-    for(ii = 0; ii < params.loc_ny; ii++)
-    {
-      //memcpy(cells[ii*(params.loc_nx+2) + 0].speeds, params.recvbuf[ii].speeds, sizeof(float)*NSPEEDS);
-      // receive on the left the right side of the left halo
-      //if(params.rank == 2) printf("%f %f %f\n", params.recvbuf[ii].speeds[5], params.recvbuf[ii].speeds[1], params.recvbuf[ii].speeds[8]);
-      tmp_cells[ii*(params.loc_nx+2) + 0].speeds[5] = params.recvbuf[ii].speeds[5];
-      tmp_cells[ii*(params.loc_nx+2) + 0].speeds[1] = params.recvbuf[ii].speeds[1];
-      tmp_cells[ii*(params.loc_nx+2) + 0].speeds[8] = params.recvbuf[ii].speeds[8];
-    }
-    /*
-    int kk;
-    for(ii = 0; ii < params.loc_ny; ii++)
-    {
-      for(kk = 0; kk < NSPEEDS; kk++) {
-        if(params.rank == 2) printf("%f ", tmp_cells[ii*(params.loc_nx+2)+0].speeds[kk]);
-      }
-      if(params.rank == 2) printf("\t\t");
-      for(kk = 0; kk < NSPEEDS; kk++) {
-        if(params.rank == 2) printf("%f ", tmp_cells[ii*(params.loc_nx+2)+params.loc_nx+1].speeds[kk]);
-      }
-      if(params.rank == 2) printf("\n");
-    }
-    if(params.rank == 2) printf("\n");*/
-
 }
 
 void rebound(const param_t params, speed_t* cells, speed_t* tmp_cells, int* obstacles)
@@ -268,8 +193,6 @@ void rebound(const param_t params, speed_t* cells, speed_t* tmp_cells, int* obst
         for (jj = 0; jj < params.loc_nx; jj++)
         {
             /* if the cell contains an obstacle */
-            //int obs_jj = jj-1;
-            //int obs_idx = (obs_jj < 0 && params.rank == MASTER) ? params.nx-1 : (ii*params.nx + (obs_jj + (params.rank * params.loc_nx))) % params.nx;
             if (obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))])//ii*params.nx + (obs_jj + (params.rank * params.loc_nx))])
             {
                 /* called after propagate, so taking values from scratch space

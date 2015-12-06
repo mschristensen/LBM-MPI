@@ -153,7 +153,9 @@ int main(int argc, char* argv[])
         av_vel = av_velocity(params, cells, obstacles);
 
         MPI_Reduce(&av_vel, &(av_vels[ii]), 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
-        //if(params.rank == MASTER) printf("Reduction: %f\n", tot);
+
+        //printf("AV_VEL #%d: %f\n", params.rank, av_vel);
+        if(params.rank == MASTER) printf("Reduction: %f\n", av_vels[ii]);
         //if(ii == 5) break;
 
         #ifdef DEBUG
