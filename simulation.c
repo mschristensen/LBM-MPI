@@ -17,21 +17,8 @@ void swap(speed_t** one, speed_t** two) {
 void timestep(const param_t params, const accel_area_t accel_area,
     speed_t* cells, speed_t* tmp_cells, int* obstacles)
 {
-
     accelerate_flow(params,accel_area,cells,obstacles);
     propagate(params,cells,tmp_cells);
-    int ii,jj,kk;
-    for (ii = 0; ii < params.loc_ny; ii++)
-    {
-      for (jj = 0; jj < params.loc_nx; jj++)
-      {
-        for(kk = 0; kk < NSPEEDS; kk++) {
-          if(tmp_cells[ii*params.loc_nx + jj].speeds[kk] == -1.0) {
-            printf("MINUS ONE IN TMP AT %d %d %d\n", ii, jj, kk);
-          }
-        }
-      }
-    }
     rebound(params,cells,tmp_cells,obstacles);
     collision(params,cells,tmp_cells,obstacles);
 }
@@ -100,10 +87,6 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
 void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
 {
     int ii,jj;  // generic counters
-    float* sendbuf_l = (float*)malloc(sizeof(float) * params.loc_ny * 3);
-    float* sendbuf_r = (float*)malloc(sizeof(float) * params.loc_ny * 3);
-    float* recvbuf_l = (float*)malloc(sizeof(float) * params.loc_ny * 3);
-    float* recvbuf_r = (float*)malloc(sizeof(float) * params.loc_ny * 3);
 
     // loop over local cells
     for (ii = 0; ii < params.loc_ny; ii++)
@@ -130,9 +113,9 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
               tmp_cells[y_n*params.loc_nx + x_e   ].speeds[5] = cells[ii*params.loc_nx + (jj)].speeds[5]; // north-east
               tmp_cells[y_s*params.loc_nx + x_e   ].speeds[8] = cells[ii*params.loc_nx + (jj)].speeds[8]; // south-east
 
-              sendbuf_l[y_n * 3 + 0] = cells[ii*params.loc_nx + (jj)].speeds[6]; // north-west
-              sendbuf_l[ii  * 3 + 1] = cells[ii*params.loc_nx + (jj)].speeds[3]; // west
-              sendbuf_l[y_s * 3 + 2] = cells[ii*params.loc_nx + (jj)].speeds[7]; // south-west
+              params.sendbuf_l[y_n * 3 + 0] = cells[ii*params.loc_nx + (jj)].speeds[6]; // north-west
+              params.sendbuf_l[ii  * 3 + 1] = cells[ii*params.loc_nx + (jj)].speeds[3]; // west
+              params.sendbuf_l[y_s * 3 + 2] = cells[ii*params.loc_nx + (jj)].speeds[7]; // south-west
             } else if(jj == params.loc_nx - 1) {
               tmp_cells[ii *params.loc_nx + (jj)].speeds[0] = cells[ii*params.loc_nx + (jj)].speeds[0]; // central cell
               tmp_cells[y_n*params.loc_nx + (jj)].speeds[2] = cells[ii*params.loc_nx + (jj)].speeds[2]; // north
@@ -141,9 +124,9 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
               tmp_cells[y_n*params.loc_nx + x_w   ].speeds[6] = cells[ii*params.loc_nx + (jj)].speeds[6]; // north-west
               tmp_cells[y_s*params.loc_nx + x_w   ].speeds[7] = cells[ii*params.loc_nx + (jj)].speeds[7]; // south-west
 
-              sendbuf_r[y_n * 3 + 0] = cells[ii*params.loc_nx + (jj)].speeds[5]; // north-east
-              sendbuf_r[ii  * 3 + 1] = cells[ii*params.loc_nx + (jj)].speeds[1]; // east
-              sendbuf_r[y_s * 3 + 2] = cells[ii*params.loc_nx + (jj)].speeds[8]; // south-east
+              params.sendbuf_r[y_n * 3 + 0] = cells[ii*params.loc_nx + (jj)].speeds[5]; // north-east
+              params.sendbuf_r[ii  * 3 + 1] = cells[ii*params.loc_nx + (jj)].speeds[1]; // east
+              params.sendbuf_r[y_s * 3 + 2] = cells[ii*params.loc_nx + (jj)].speeds[8]; // south-east
             } else {
               tmp_cells[ii *params.loc_nx + (jj)].speeds[0] = cells[ii*params.loc_nx + (jj)].speeds[0]; // central cell
               tmp_cells[ii *params.loc_nx + x_e   ].speeds[1] = cells[ii*params.loc_nx + (jj)].speeds[1]; // east
@@ -162,24 +145,24 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
     MPI_Status status;     // struct used by MPI_Recv
 
     // send to the left, receive from right
-    MPI_Sendrecv(sendbuf_l, params.loc_ny * 3, MPI_FLOAT, params.left, tag,
-                 recvbuf_r, params.loc_ny * 3, MPI_FLOAT, params.right,tag, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv(params.sendbuf_l, params.loc_ny * 3, MPI_FLOAT, params.left, tag,
+                 params.recvbuf, params.loc_ny * 3, MPI_FLOAT, params.right,tag, MPI_COMM_WORLD, &status);
 
     for(ii = 0; ii < params.loc_ny; ii++)
     {
-      tmp_cells[ii*params.loc_nx + params.loc_nx - 1].speeds[6] = recvbuf_r[ii * 3 + 0];
-      tmp_cells[ii*params.loc_nx + params.loc_nx - 1].speeds[3] = recvbuf_r[ii * 3 + 1];
-      tmp_cells[ii*params.loc_nx + params.loc_nx - 1].speeds[7] = recvbuf_r[ii * 3 + 2];
+      tmp_cells[ii*params.loc_nx + params.loc_nx - 1].speeds[6] = params.recvbuf[ii * 3 + 0];
+      tmp_cells[ii*params.loc_nx + params.loc_nx - 1].speeds[3] = params.recvbuf[ii * 3 + 1];
+      tmp_cells[ii*params.loc_nx + params.loc_nx - 1].speeds[7] = params.recvbuf[ii * 3 + 2];
     }
 
     // send to the right, receive from left
-    MPI_Sendrecv(sendbuf_r, params.loc_ny * 3, MPI_FLOAT, params.right, tag,
-                 recvbuf_l, params.loc_ny * 3, MPI_FLOAT, params.left,  tag, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv(params.sendbuf_r, params.loc_ny * 3, MPI_FLOAT, params.right, tag,
+                 params.recvbuf, params.loc_ny * 3, MPI_FLOAT, params.left,  tag, MPI_COMM_WORLD, &status);
     for(ii = 0; ii < params.loc_ny; ii++)
     {
-      tmp_cells[ii*params.loc_nx + 0].speeds[5] = recvbuf_l[ii * 3 + 0];
-      tmp_cells[ii*params.loc_nx + 0].speeds[1] = recvbuf_l[ii * 3 + 1];
-      tmp_cells[ii*params.loc_nx + 0].speeds[8] = recvbuf_l[ii * 3 + 2];
+      tmp_cells[ii*params.loc_nx + 0].speeds[5] = params.recvbuf[ii * 3 + 0];
+      tmp_cells[ii*params.loc_nx + 0].speeds[1] = params.recvbuf[ii * 3 + 1];
+      tmp_cells[ii*params.loc_nx + 0].speeds[8] = params.recvbuf[ii * 3 + 2];
     }
 }
 

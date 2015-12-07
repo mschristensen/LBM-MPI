@@ -24,8 +24,9 @@ typedef struct {
     int size;          // size of cohort, i.e. num processes started
     int left;          // the rank of the process to the left
     int right;         // the rank of the process to the right
-    speed_t* sendbuf;
-    speed_t* recvbuf;
+    float* sendbuf_l;
+    float* sendbuf_r;
+    float* recvbuf;
 
     int max_iters;      /* no. of iterations */
     int reynolds_dim;  /* dimension for Reynolds number */

@@ -145,9 +145,6 @@ int main(int argc, char* argv[])
 
     for (ii = 0; ii < params.max_iters; ii++)
     {
-        //TODO: -av_vels reduction
-        //      -last calculated av_vels in calc_reynolds
-        //      -read back all cell data to big array for write_values
         timestep(params, accel_area, cells, tmp_cells, obstacles);
         float av_vel;
         av_vel = av_velocity(params, cells, obstacles);
