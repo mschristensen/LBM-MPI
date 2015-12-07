@@ -145,9 +145,8 @@ int main(int argc, char* argv[])
 
     for (ii = 0; ii < params.max_iters; ii++)
     {
-        timestep(params, accel_area, cells, tmp_cells, obstacles);
         float av_vel;
-        av_vel = av_velocity(params, cells, obstacles);
+        av_vel = timestep(params, accel_area, cells, tmp_cells, obstacles);
 
         // Reduction
         MPI_Reduce(&av_vel, &(av_vels[ii]), 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
@@ -160,13 +159,14 @@ int main(int argc, char* argv[])
         printf("tot density: %.12E\n", total_density(params, cells));
         #endif
     }
+    const float last_av_vel = av_vels[params.max_iters - 1];
 
     // Final read back of all cell data
-    //TODO this below malloc is made by all threads... but it needs to be freed
-    speed_t* final_cells = (speed_t*)malloc(sizeof(speed_t) * params.nx * params.ny);
+    speed_t* final_cells;
     int tag, jj, kk;
     MPI_Status status;     // struct used by MPI_Recv
     if(params.rank == MASTER) {
+      final_cells = (speed_t*)malloc(sizeof(speed_t) * params.nx * params.ny);
       // Master first copies his data to the final array
       for (ii = 0; ii < params.loc_ny; ii++)
       {
@@ -207,14 +207,14 @@ int main(int argc, char* argv[])
 
     if(params.rank == MASTER)
     {
+      printf("Writing results...\n");
+      write_values(final_state_file, av_vels_file, params, final_cells, obstacles, av_vels);
+
       printf("==done==\n");
-      printf("Reynolds number:\t\t%.12E\n", calc_reynolds(params,final_cells,obstacles));
+      printf("Reynolds number:\t\t%.12E\n", calc_reynolds(params,last_av_vel));
       printf("Elapsed time:\t\t\t%.6f (s)\n", toc-tic);
       printf("Elapsed user CPU time:\t\t%.6f (s)\n", usrtim);
       printf("Elapsed system CPU time:\t%.6f (s)\n", systim);
-
-      printf("Writing results...\n");
-      write_values(final_state_file, av_vels_file, params, final_cells, obstacles, av_vels);
     } else {
       printf("Host %s: process %d of %d :: Elapsed time:\t\t\t%.6f (s)\n", hostname, params.rank, params.size, toc-tic);
     }
@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
     }
 
     finalise(&cells, &tmp_cells, &obstacles, &av_vels);
-    free(final_cells);
+    if(params.rank == MASTER) free(final_cells);
     return EXIT_SUCCESS;
 }
 
@@ -333,11 +333,11 @@ void write_values(const char * final_state_file, const char * av_vels_file,
     fclose(fp);
 }
 
-float calc_reynolds(const param_t params, speed_t* cells, int* obstacles)
+float calc_reynolds(const param_t params, const float last_av_vel)
 {
     const float viscosity = 1.0 / 6.0 * (2.0 / params.omega - 1.0);
 
-    return av_velocity(params,cells,obstacles) * params.reynolds_dim / viscosity;
+    return last_av_vel * params.reynolds_dim / viscosity;
 }
 
 float total_density(const param_t params, speed_t* cells)
