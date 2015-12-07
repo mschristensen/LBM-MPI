@@ -37,25 +37,27 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
     if (accel_area.col_or_row == ACCEL_COLUMN)
     {
         jj = accel_area.idx;
-
-        for (ii = 0; ii < params.loc_ny; ii++)
+        if(jj < (params.rank + 1) * params.loc_nx && jj >= params.rank * params.loc_nx)
         {
-            // if the cell is not occupied and
-            // we don't send a density negative
-            if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))] &&
-            (cells[ii*params.loc_nx + jj].speeds[4] - w1) > 0.0 &&
-            (cells[ii*params.loc_nx + jj].speeds[7] - w2) > 0.0 &&
-            (cells[ii*params.loc_nx + jj].speeds[8] - w2) > 0.0 )
-            {
-                // increase 'north-side' densities
-                cells[ii*params.loc_nx + jj].speeds[2] += w1;
-                cells[ii*params.loc_nx + jj].speeds[5] += w2;
-                cells[ii*params.loc_nx + jj].speeds[6] += w2;
-                // decrease 'south-side' densities
-                cells[ii*params.loc_nx + jj].speeds[4] -= w1;
-                cells[ii*params.loc_nx + jj].speeds[7] -= w2;
-                cells[ii*params.loc_nx + jj].speeds[8] -= w2;
-            }
+          for (ii = 0; ii < params.loc_ny; ii++)
+          {
+              // if the cell is not occupied and
+              // we don't send a density negative
+              if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))] &&
+              (cells[ii*params.loc_nx + jj].speeds[4] - w1) > 0.0 &&
+              (cells[ii*params.loc_nx + jj].speeds[7] - w2) > 0.0 &&
+              (cells[ii*params.loc_nx + jj].speeds[8] - w2) > 0.0 )
+              {
+                  // increase 'north-side' densities
+                  cells[ii*params.loc_nx + jj].speeds[2] += w1;
+                  cells[ii*params.loc_nx + jj].speeds[5] += w2;
+                  cells[ii*params.loc_nx + jj].speeds[6] += w2;
+                  // decrease 'south-side' densities
+                  cells[ii*params.loc_nx + jj].speeds[4] -= w1;
+                  cells[ii*params.loc_nx + jj].speeds[7] -= w2;
+                  cells[ii*params.loc_nx + jj].speeds[8] -= w2;
+              }
+          }
         }
     }
     else
