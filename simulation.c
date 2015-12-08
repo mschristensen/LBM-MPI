@@ -19,7 +19,7 @@ float timestep(const param_t params, const accel_area_t accel_area,
 {
   accelerate_flow(params,accel_area,cells,obstacles);
   propagate(params,cells,tmp_cells);
-  //return rebound_collision_av_velocity(params,cells,tmp_cells,obstacles);
+  return rebound_collision_av_velocity(params,cells,tmp_cells,obstacles);
   /*int ii, jj, kk;
   for (ii = 0; ii < params.loc_ny; ii++)
   {
