@@ -119,8 +119,8 @@ int main(int argc, char* argv[])
     ** determine process ranks to the left and right of rank
     ** respecting periodic boundary conditions
     */
-    params.up = (params.rank == MASTER) ? (params.rank + params.size - 1) : (params.rank - 1);
-    params.down = (params.rank + 1) % params.size;
+    params.down = (params.rank == MASTER) ? (params.rank + params.size - 1) : (params.rank - 1);
+    params.up = (params.rank + 1) % params.size;
 
     /*
     ** determine local grid size
@@ -145,18 +145,19 @@ int main(int argc, char* argv[])
 
     for (ii = 0; ii < params.max_iters; ii++)
     {
-        float av_vel;
-        av_vel = timestep(params, accel_area, cells, tmp_cells, obstacles);
-        // Reduction
-        MPI_Reduce(&av_vel, &(av_vels[ii]), 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
-        av_vels[ii] /= 4.0;
-        //if(ii == 5) break;
+      float av_vel;
+      av_vel = timestep(params, accel_area, cells, tmp_cells, obstacles);
 
-        #ifdef DEBUG
-        printf("==timestep: %d==\n", ii);
-        printf("av velocity: %.12E\n", av_vels[ii]);
-        printf("tot density: %.12E\n", total_density(params, cells));
-        #endif
+      // Reduction
+      MPI_Reduce(&av_vel, &(av_vels[ii]), 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+      av_vels[ii] /= 4.0;
+      //if(ii == 5) break;
+
+      #ifdef DEBUG
+      printf("==timestep: %d==\n", ii);
+      printf("av velocity: %.12E\n", av_vels[ii]);
+      printf("tot density: %.12E\n", total_density(params, cells));
+      #endif
     }
     const float last_av_vel = av_vels[params.max_iters - 1];
 
@@ -166,6 +167,7 @@ int main(int argc, char* argv[])
     MPI_Status status;     // struct used by MPI_Recv
     if(params.rank == MASTER) {
       final_cells = (speed_t*)malloc(sizeof(speed_t) * params.nx * params.ny);
+
       // Master first copies his data to the final array
       for (ii = 0; ii < params.loc_ny; ii++)
       {
@@ -176,12 +178,13 @@ int main(int argc, char* argv[])
       }
 
       // Then he reads data from each of the other ranks and writes that
-      for(kk = 1; kk < params.size; kk++) {
+      for(kk = 1; kk < params.size; kk++)
+      {
         for (ii = 0; ii < params.loc_ny; ii++)
         {
           for (jj = 0; jj < params.loc_nx; jj++)
           {
-            MPI_Recv(final_cells[(ii + params.rank * params.loc_ny)*params.nx + jj].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
+            MPI_Recv(final_cells[(ii + kk * params.loc_ny)*params.nx + jj].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
           }
         }
       }
