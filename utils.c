@@ -271,9 +271,9 @@ void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr
     }
 
     // Allocate send/receive buffers
-    params->sendbuf_l = (float*)malloc(sizeof(float) * params->loc_ny * 3);
-    params->sendbuf_r = (float*)malloc(sizeof(float) * params->loc_ny * 3);
-    params->recvbuf = (float*)malloc(sizeof(float) * params->loc_ny * 3);
+    params->sendbuf_d = (float*)malloc(sizeof(float) * params->loc_nx * 3);
+    params->sendbuf_u = (float*)malloc(sizeof(float) * params->loc_nx * 3);
+    params->recvbuf = (float*)malloc(sizeof(float) * params->loc_nx * 3);
 }
 
 void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr,

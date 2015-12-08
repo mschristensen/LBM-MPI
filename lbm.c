@@ -119,16 +119,16 @@ int main(int argc, char* argv[])
     ** determine process ranks to the left and right of rank
     ** respecting periodic boundary conditions
     */
-    params.left = (params.rank == MASTER) ? (params.rank + params.size - 1) : (params.rank - 1);
-    params.right = (params.rank + 1) % params.size;
+    params.down = (params.rank == MASTER) ? (params.rank + params.size - 1) : (params.rank - 1);
+    params.up = (params.rank + 1) % params.size;
 
     /*
     ** determine local grid size
     ** each rank gets all the rows, but a subset of the number of columns
     */
-    params.loc_ny = params.ny;
-    params.loc_nx = calc_ncols_from_rank(params);
-    if (params.loc_nx < 1) {
+    params.loc_ny = calc_nrows_from_rank(params);
+    params.loc_nx = params.nx;
+    if (params.loc_ny < 1) {
       fprintf(stderr,"Error: too many processes:- local_ncols < 1\n");
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
     // Allocate the local arrays
     allocateLocal(&params, &cells, &tmp_cells);
 
-    printf("Host %s: process %d of %d :: local_cells of size %dx%d plus halos\n", hostname, params.rank, params.size, params.loc_ny, params.loc_nx);
+    printf("Host %s: process %d of %d :: local_cells of size %dx%d\n", hostname, params.rank, params.size, params.loc_ny, params.loc_nx);
 
     /* iterate for max_iters timesteps */
     gettimeofday(&timstr,NULL);
@@ -172,7 +172,7 @@ int main(int argc, char* argv[])
       {
         for (jj = 0; jj < params.loc_nx; jj++)
         {
-          memcpy(final_cells[ii*params.nx + (jj + (params.rank * params.loc_nx))].speeds, cells[ii*params.loc_nx + jj].speeds, sizeof(float)*NSPEEDS);
+          memcpy(final_cells[(ii + params.rank * params.loc_ny) * params.nx + jj].speeds, cells[ii*params.loc_nx + jj].speeds, sizeof(float)*NSPEEDS);
         }
       }
 
@@ -182,7 +182,7 @@ int main(int argc, char* argv[])
         {
           for (jj = 0; jj < params.loc_nx; jj++)
           {
-            MPI_Recv(final_cells[ii*params.nx + (jj + (kk * params.loc_nx))].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
+            MPI_Recv(final_cells[(ii + kk * params.loc_ny) * params.nx + jj].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
           }
         }
       }
@@ -232,19 +232,19 @@ int main(int argc, char* argv[])
     return EXIT_SUCCESS;
 }
 
-int calc_ncols_from_rank(const param_t params)
+int calc_nrows_from_rank(const param_t params)
 {
-  int ncols;
+  int nrows;
 
-  ncols = params.nx / params.size;       /* integer division */
-  if ((params.nx % params.size) != 0) {  /* if there is a remainder */
+  nrows = params.ny / params.size;       /* integer division */
+  if ((params.ny % params.size) != 0) {  /* if there is a remainder */
     if (params.rank == params.size - 1)
-      ncols += params.nx % params.size;  /* add remainder to last rank */
+      nrows += params.ny % params.size;  /* add remainder to last rank */
   }
 
-  printf("Rank %d is has %d cols.\n", params.rank, ncols);
+  printf("Rank %d is has %d cols.\n", params.rank, nrows);
 
-  return ncols;
+  return nrows;
 }
 
 void write_values(const char * final_state_file, const char * av_vels_file,

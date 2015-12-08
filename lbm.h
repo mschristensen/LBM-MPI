@@ -22,10 +22,10 @@ typedef struct {
     int loc_ny;        // no. of cells in local array in y-direction
     int rank;          // 'rank' of process among it's cohort
     int size;          // size of cohort, i.e. num processes started
-    int left;          // the rank of the process to the left
-    int right;         // the rank of the process to the right
-    float* sendbuf_l;
-    float* sendbuf_r;
+    int down;          // the rank of the process below
+    int up;            // the rank of the process above
+    float* sendbuf_d;
+    float* sendbuf_u;
     float* recvbuf;
 
     int max_iters;      /* no. of iterations */
@@ -56,7 +56,7 @@ void parse_args (int argc, char* argv[],
 void initialise(const char* param_file, accel_area_t * accel_area, param_t* params, int** obstacles_ptr, float** av_vels_ptr);
 void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr);
 
-int calc_ncols_from_rank(const param_t params);
+int calc_nrows_from_rank(const param_t params);
 
 void write_values(const char * final_state_file, const char * av_vels_file,
     const param_t params, speed_t* cells, int* obstacles, float* av_vels);
