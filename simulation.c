@@ -39,7 +39,7 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
         {
             // if the cell is not occupied and
             // we don't send a density negative
-            if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))] &&
+            if (!obstacles[(ii + params.rank * params.loc_ny) * params.nx + jj] &&
             (cells[ii*params.loc_nx + jj].speeds[4] - w1) > 0.0 &&
             (cells[ii*params.loc_nx + jj].speeds[7] - w2) > 0.0 &&
             (cells[ii*params.loc_nx + jj].speeds[8] - w2) > 0.0 )
@@ -64,7 +64,7 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
           {
               // if the cell is not occupied and
               // we don't send a density negative
-              if (!obstacles[ii*params.nx + (jj + (params.rank * params.loc_nx))] &&
+              if (!obstacles[(ii + params.rank * params.loc_ny) * params.nx + jj] &&
               (cells[ii*params.loc_nx + jj].speeds[3] - w1) > 0.0 &&
               (cells[ii*params.loc_nx + jj].speeds[6] - w2) > 0.0 &&
               (cells[ii*params.loc_nx + jj].speeds[7] - w2) > 0.0 )
