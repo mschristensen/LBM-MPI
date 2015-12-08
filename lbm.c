@@ -146,7 +146,8 @@ int main(int argc, char* argv[])
     for (ii = 0; ii < params.max_iters; ii++)
     {
       float av_vel;
-      av_vel = timestep(params, accel_area, cells, tmp_cells, obstacles);
+      timestep(params, accel_area, cells, tmp_cells, obstacles);
+      av_vel = av_velocity(params, cells, obstacles);
 
       // Reduction
       MPI_Reduce(&av_vel, &(av_vels[ii]), 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
