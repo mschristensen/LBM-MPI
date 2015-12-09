@@ -309,5 +309,12 @@ float rebound_collision_av_velocity(const param_t params, speed_t* cells, speed_
             }
         }
     }
-    return tot_u / (float)tot_cells;
+
+    // Reduction
+    int total_cells = 0;
+    MPI_Reduce(&tot_cells, &total_cells, 1, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+    float total_u = 0.0;
+    MPI_Reduce(&tot_u, &total_u, 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+    
+    return total_u / (float)total_cells;
 }

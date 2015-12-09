@@ -142,23 +142,18 @@ int main(int argc, char* argv[])
     gettimeofday(&timstr,NULL);
     tic=timstr.tv_sec+(timstr.tv_usec/1000000.0);
 
-
     for (ii = 0; ii < params.max_iters; ii++)
     {
-        float av_vel;
-        av_vel = timestep(params, accel_area, cells, tmp_cells, obstacles);
+      //MPI_Barrier(MPI_COMM_WORLD);
+      av_vels[ii] = timestep(params, accel_area, cells, tmp_cells, obstacles);
 
-        // Reduction
-        MPI_Reduce(&av_vel, &(av_vels[ii]), 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
-        av_vels[ii] /= 4.0;
-        //if(ii == 5) break;
-
-        #ifdef DEBUG
-        printf("==timestep: %d==\n", ii);
-        printf("av velocity: %.12E\n", av_vels[ii]);
-        printf("tot density: %.12E\n", total_density(params, cells));
-        #endif
+      #ifdef DEBUG
+      printf("==timestep: %d==\n", ii);
+      printf("av velocity: %.12E\n", av_vels[ii]);
+      printf("tot density: %.12E\n", total_density(params, cells));
+      #endif
     }
+
     const float last_av_vel = av_vels[params.max_iters - 1];
 
     // Final read back of all cell data
