@@ -4,7 +4,7 @@
 #PBS -joe
 #PBS -o LBM.out
 #PBS -q teaching
-#PBS -l nodes=1:ppn=4,walltime=00:10:00
+#PBS -l nodes=2:ppn=1,walltime=00:10:00
 
 #! Mail to user if job aborts
 #PBS -m a
@@ -35,7 +35,9 @@ cat $PBS_NODEFILE > machine.file.$PBS_JOBID
 
 numnodes=`wc $PBS_NODEFILE | awk '{ print $1 }'`
 
-#export OMP_NUM_THREADS=$numnodes
+export OMP_NUM_THREADS=16
 
 #! Run the executable
-mpirun -np $numnodes -machinefile machine.file.$PBS_JOBID $application $options
+#! npernode = ppn, np = numnodes
+#! threads per node = OMP_NUM_THREADS
+mpirun -np $numnodes -npernode 1 -machinefile machine.file.$PBS_JOBID $application $options

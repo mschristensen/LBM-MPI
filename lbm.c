@@ -57,6 +57,7 @@
 #include <sys/resource.h>
 #include <string.h> //memcpy
 
+#include <omp.h>
 #include "lbm.h"
 #include "mpi.h"
 
@@ -82,7 +83,7 @@ int main(int argc, char* argv[])
     int    ii;                    /*  generic counter */
     struct timeval timstr;        /* structure to hold elapsed time */
     struct rusage ru;             /* structure to hold CPU time--system and user */
-    float tic,toc;               /* floating point numbers to calculate elapsed wallclock time */
+    double tic,toc;               /* floating point numbers to calculate elapsed wallclock time */
     float usrtim;                /* floating point number to record elapsed user CPU time */
     float systim;                /* floating point number to record elapsed system CPU time */
 
@@ -141,6 +142,22 @@ int main(int argc, char* argv[])
     /* iterate for max_iters timesteps */
     gettimeofday(&timstr,NULL);
     tic=timstr.tv_sec+(timstr.tv_usec/1000000.0);
+
+    /*
+    // CODE TO INSPECT THE MPI + OPENMP SETUP
+    #pragma omp parallel
+    {
+      printf("Host %s:\tProcess: %d/%d\tThread: %d/%d\n", hostname, params.rank, params.size, omp_get_thread_num(), omp_get_max_threads());
+    }
+    // Finalize MPI environment.
+    MPI_Finalize();
+
+    MPI_Finalized(&flag);
+    if(flag != TRUE) {
+      MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    }
+    return -1;
+    */
 
     for (ii = 0; ii < params.max_iters; ii++)
     {
@@ -207,7 +224,7 @@ int main(int argc, char* argv[])
 
       printf("==done==\n");
       printf("Reynolds number:\t\t%.12E\n", calc_reynolds(params,last_av_vel));
-      printf("Elapsed time:\t\t\t%.6f (s)\n", toc-tic);
+      printf("Elapsed time:\t\t\t%.6lf (s)\n", toc-tic);
       printf("Elapsed user CPU time:\t\t%.6f (s)\n", usrtim);
       printf("Elapsed system CPU time:\t%.6f (s)\n", systim);
     } else {
