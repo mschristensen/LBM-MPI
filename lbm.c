@@ -92,7 +92,12 @@ int main(int argc, char* argv[])
     initialise(param_file, &accel_area, &params, &obstacles, &av_vels);
 
     // Initialize MPI environment.
-    MPI_Init(&argc, &argv);
+    int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    if(provided != MPI_THREAD_FUNNELED) {
+      printf("Cannot support funneled threading! Provided: %d :: %d %d %d %d\n", provided, MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE);
+      MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    }
     int flag;
     // Check if initialization was successful.
     MPI_Initialized(&flag);

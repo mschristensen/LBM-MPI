@@ -4,7 +4,7 @@
 #PBS -joe
 #PBS -o LBM.out
 #PBS -q teaching
-#PBS -l nodes=2:ppn=1,walltime=00:10:00
+#PBS -l nodes=4:ppn=16,walltime=00:10:00
 
 #! Mail to user if job aborts
 #PBS -m a
@@ -40,4 +40,4 @@ export OMP_NUM_THREADS=16
 #! Run the executable
 #! npernode = ppn, np = numnodes
 #! threads per node = OMP_NUM_THREADS
-mpirun -np $numnodes -npernode 1 -machinefile machine.file.$PBS_JOBID $application $options
+mpirun -np $numnodes -npernode 16 -machinefile machine.file.$PBS_JOBID $application $options
