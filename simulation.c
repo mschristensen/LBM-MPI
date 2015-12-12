@@ -40,7 +40,7 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
         {
             // if the cell is not occupied and
             // we don't send a density negative
-            if (!obstacles[(ii + params.rank * params.loc_ny) * params.nx + jj] &&
+            if (!obstacles[get_global_y_coord(params, params.rank, ii) * params.nx + jj] &&
             (cells[ii*params.loc_nx + jj].speeds[4] - w1) > 0.0 &&
             (cells[ii*params.loc_nx + jj].speeds[7] - w2) > 0.0 &&
             (cells[ii*params.loc_nx + jj].speeds[8] - w2) > 0.0 )
@@ -59,25 +59,32 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
     else
     {
         ii = accel_area.idx;
-        if(ii < (params.rank + 1) * params.loc_ny && ii >= params.rank * params.loc_ny)
+        int global_ii = get_global_y_coord(params, params.rank, 0);
+        /*int global_ii = 0;
+        int kk;
+        for(kk = 0; kk < params.rank; kk++)
+        {
+          global_ii += params.loc_nys[kk];
+        }*/
+        if(ii > global_ii && ii < global_ii + params.loc_nys[params.rank])
         {
           for (jj = 0; jj < params.loc_nx; jj++)
           {
               // if the cell is not occupied and
               // we don't send a density negative
-              if (!obstacles[(ii + params.rank * params.loc_ny) * params.nx + jj] &&
-              (cells[ii*params.loc_nx + jj].speeds[3] - w1) > 0.0 &&
-              (cells[ii*params.loc_nx + jj].speeds[6] - w2) > 0.0 &&
-              (cells[ii*params.loc_nx + jj].speeds[7] - w2) > 0.0 )
+              if (!obstacles[ii * params.nx + jj] &&
+              (cells[(ii - global_ii)*params.loc_nx + jj].speeds[3] - w1) > 0.0 &&
+              (cells[(ii - global_ii)*params.loc_nx + jj].speeds[6] - w2) > 0.0 &&
+              (cells[(ii - global_ii)*params.loc_nx + jj].speeds[7] - w2) > 0.0 )
               {
                   // increase 'east-side' densities
-                  cells[ii*params.loc_nx + jj].speeds[1] += w1;
-                  cells[ii*params.loc_nx + jj].speeds[5] += w2;
-                  cells[ii*params.loc_nx + jj].speeds[8] += w2;
+                  cells[(ii - global_ii)*params.loc_nx + jj].speeds[1] += w1;
+                  cells[(ii - global_ii)*params.loc_nx + jj].speeds[5] += w2;
+                  cells[(ii - global_ii)*params.loc_nx + jj].speeds[8] += w2;
                   // decrease 'west-side' densities
-                  cells[ii*params.loc_nx + jj].speeds[3] -= w1;
-                  cells[ii*params.loc_nx + jj].speeds[6] -= w2;
-                  cells[ii*params.loc_nx + jj].speeds[7] -= w2;
+                  cells[(ii - global_ii)*params.loc_nx + jj].speeds[3] -= w1;
+                  cells[(ii - global_ii)*params.loc_nx + jj].speeds[6] -= w2;
+                  cells[(ii - global_ii)*params.loc_nx + jj].speeds[7] -= w2;
               }
           }
         }
@@ -127,7 +134,7 @@ void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells)
       params.sendbuf_u[x_e * 3 + 2] = cells[(params.loc_ny - 1)*params.loc_nx + jj].speeds[5]; // north-east
     }
 
-    #pragma omp parallel
+    //#pragma omp parallel
     {
       // loop over local cells
       for (ii = 1; ii < params.loc_ny - 1; ii++)
@@ -209,7 +216,7 @@ float rebound_collision_av_velocity(const param_t params, speed_t* cells, speed_
           for (jj = 0; jj < params.loc_nx; jj++)
           {
               /* if the cell contains an obstacle */
-              if (obstacles[(ii + params.rank * params.loc_ny) * params.nx + jj])
+              if (obstacles[get_global_y_coord(params, params.rank, ii) * params.nx + jj])
               {
                   /* called after propagate, so taking values from scratch space
                   ** mirroring, and writing into main grid */

@@ -92,12 +92,14 @@ int main(int argc, char* argv[])
     initialise(param_file, &accel_area, &params, &obstacles, &av_vels);
 
     // Initialize MPI environment.
-    int provided;
+    MPI_Init(&argc, &argv);
+    /*int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
     if(provided != MPI_THREAD_FUNNELED) {
       printf("Cannot support funneled threading! Provided: %d :: %d %d %d %d\n", provided, MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE);
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-    }
+    }*/
+
     int flag;
     // Check if initialization was successful.
     MPI_Initialized(&flag);
@@ -132,8 +134,13 @@ int main(int argc, char* argv[])
     ** determine local grid size
     ** each rank gets all the rows, but a subset of the number of columns
     */
-    params.loc_ny = calc_nrows_from_rank(params);
-    params.loc_nx = params.nx;
+    for(ii = 0; ii <= params.rank; ii++) {
+      params.loc_nys[ii] = calc_nrows_from_rank(params, ii);
+      params.loc_nxs[ii] = params.nx;
+      printf(":::: %d %d\n",params.loc_nxs[ii], params.loc_nys[ii]);
+    }
+    params.loc_nx = params.loc_nxs[params.rank];
+    params.loc_ny = params.loc_nys[params.rank];
     if (params.loc_ny < 1) {
       fprintf(stderr,"Error: too many processes:- local_ncols < 1\n");
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
@@ -141,6 +148,7 @@ int main(int argc, char* argv[])
 
     // Allocate the local arrays
     allocateLocal(&params, &cells, &tmp_cells);
+
 
     printf("Host %s: process %d of %d :: local_cells of size %dx%d\n", hostname, params.rank, params.size, params.loc_ny, params.loc_nx);
 
@@ -167,6 +175,12 @@ int main(int argc, char* argv[])
     for (ii = 0; ii < params.max_iters; ii++)
     {
       //MPI_Barrier(MPI_COMM_WORLD);
+
+      //TODO:   -Need to fix the get_global_index as the obstacles/accelerating is fucking up
+      //        -instead of a global id use a method which calcs the global y-coord,
+      //         this can then be used to calc global index, but also useful for accelerate_flow
+      //        -get rid of loc_nxs since loc_nx = params.nx
+
       av_vels[ii] = timestep(params, accel_area, cells, tmp_cells, obstacles);
 
       #ifdef DEBUG
@@ -177,6 +191,7 @@ int main(int argc, char* argv[])
     }
 
     const float last_av_vel = av_vels[params.max_iters - 1];
+    printf("LAST AV VEL: %f\n", last_av_vel);
 
     // Final read back of all cell data
     speed_t* final_cells;
@@ -194,17 +209,29 @@ int main(int argc, char* argv[])
       }
 
       // Then he reads data from each of the other ranks and writes that
+      int k_loc_ny_sum = params.loc_ny;
       for(kk = 1; kk < params.size; kk++) {
-        for (ii = 0; ii < params.loc_ny; ii++)
+        // First read the size of the data to read back
+        int k_loc_nx, k_loc_ny;
+        MPI_Recv(&k_loc_nx, 1, MPI_INT, kk, tag, MPI_COMM_WORLD, &status);
+        MPI_Recv(&k_loc_ny, 1, MPI_INT, kk, tag, MPI_COMM_WORLD, &status);
+
+        // Record how far down the (global) grid we are
+        printf("%d %d ... %d\n", k_loc_nx, k_loc_ny, k_loc_ny_sum);
+        for (ii = 0; ii < k_loc_ny; ii++)
         {
-          for (jj = 0; jj < params.loc_nx; jj++)
+          for (jj = 0; jj < k_loc_nx; jj++)
           {
-            MPI_Recv(final_cells[(ii + kk * params.loc_ny) * params.nx + jj].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
+            MPI_Recv(final_cells[(ii + k_loc_ny_sum) * params.nx + jj].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
           }
         }
+        k_loc_ny_sum += k_loc_ny;
       }
     } else {
       // Non-master ranks send all their data (not the halos) to master
+      // First send the size of the data
+      MPI_Send(&params.loc_nx, 1, MPI_INT, MASTER, tag, MPI_COMM_WORLD);
+      MPI_Send(&params.loc_ny, 1, MPI_INT, MASTER, tag, MPI_COMM_WORLD);
       for (ii = 0; ii < params.loc_ny; ii++)
       {
         for (jj = 0; jj < params.loc_nx; jj++)
@@ -237,7 +264,9 @@ int main(int argc, char* argv[])
     }
 
     // Finalize MPI environment.
+    printf("finalising %d\n", params.rank);
     MPI_Finalize();
+    printf("finalised %d\n", params.rank);
 
     MPI_Finalized(&flag);
     if(flag != TRUE) {
@@ -249,17 +278,24 @@ int main(int argc, char* argv[])
     return EXIT_SUCCESS;
 }
 
-int calc_nrows_from_rank(const param_t params)
+int calc_nrows_from_rank(const param_t params, const int rank)
 {
   int nrows;
-
+  int i;
   nrows = params.ny / params.size;       /* integer division */
-  if ((params.ny % params.size) != 0) {  /* if there is a remainder */
-    if (params.rank == params.size - 1)
-      nrows += params.ny % params.size;  /* add remainder to last rank */
+  int rem = (params.ny % params.size);
+  if (rem != 0) {  /* if there is a remainder */
+    for(i = 0; i < rem; i++) {
+      if(rank == i) {
+        nrows += 1;
+      }
+      rem -= 1;
+    }
+    //if (params.rank == params.size - 1)
+    //  nrows += params.ny % params.size;  /* add remainder to last rank */
   }
 
-  printf("Rank %d is has %d cols.\n", params.rank, nrows);
+  printf("Rank %d is has %d rows.\n", rank, nrows);
 
   return nrows;
 }

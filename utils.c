@@ -216,6 +216,10 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
   }
 
   free(obstacles);
+
+  // Allocate size arrays
+  params->loc_nxs = (int*)malloc(sizeof(int) * params->size);
+  params->loc_nys = (int*)malloc(sizeof(int) * params->size);
 }
 
 void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr)
@@ -274,6 +278,16 @@ void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr
     params->sendbuf_d = (float*)malloc(sizeof(float) * params->loc_nx * 3);
     params->sendbuf_u = (float*)malloc(sizeof(float) * params->loc_nx * 3);
     params->recvbuf = (float*)malloc(sizeof(float) * params->loc_nx * 3);
+}
+
+int get_global_y_coord(const param_t params, int rank, int ii) {
+  int kk;
+  int sum = 0;
+  for(kk = 0; kk < rank; kk++) {
+    // First read the size of the data to read back
+    sum += params.loc_nys[kk];
+  }
+  return (sum + ii);
 }
 
 void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr,
