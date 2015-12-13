@@ -71,8 +71,6 @@ float timestep(const param_t params, const accel_area_t accel_area,
     speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles);
 void accelerate_flow(const param_t params, const accel_area_t accel_area,
     speed_t* cells, int* obstacles);
-void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells);
-float rebound_collision_av_velocity(const param_t params, speed_t* cells, speed_t* tmp_cells, int* obstacles);
 float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles);
 
 /* Sum all the densities in the grid.
