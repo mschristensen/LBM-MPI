@@ -222,7 +222,7 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
   params->loc_nys = (int*)malloc(sizeof(int) * params->size);
 }
 
-void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr)
+void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr, speed_t** tmp_tmp_cells_ptr)
 {
     int    ii,jj;          /* generic counters */
     float w0,w1,w2;       /* weighting factors */
@@ -233,6 +233,9 @@ void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr
 
     *tmp_cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->loc_ny * params->loc_nx));
     if (*tmp_cells_ptr == NULL) DIE("Cannot allocate memory for tmp_cells");
+
+    *tmp_tmp_cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->loc_ny * params->loc_nx));
+    if (*tmp_tmp_cells_ptr == NULL) DIE("Cannot allocate memory for tmp_tmp_cells");
 
     w0 = params->density * 4.0/9.0;
     w1 = params->density      /9.0;
@@ -289,12 +292,13 @@ int get_global_y_coord(const param_t params, int rank, int ii) {
   return (sum + ii);
 }
 
-void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr,
+void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr, speed_t** tmp_tmp_cells_ptr,
     int** obstacles_ptr, float** av_vels_ptr)
 {
     /* Free allocated memory */
     free(*cells_ptr);
     free(*tmp_cells_ptr);
+    free(*tmp_tmp_cells_ptr);
     free(*obstacles_ptr);
     free(*av_vels_ptr);
 }

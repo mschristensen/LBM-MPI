@@ -56,7 +56,7 @@ void parse_args (int argc, char* argv[],
     char** final_state_file, char** av_vels_file, char** param_file);
 
 void initialise(const char* param_file, accel_area_t * accel_area, param_t* params, int** obstacles_ptr, float** av_vels_ptr);
-void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr);
+void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr, speed_t** tmp_tmp_cells_ptr);
 int get_global_y_coord(const param_t params, int rank, int ii);
 
 int calc_nrows_from_rank(const param_t params, const int rank);
@@ -64,15 +64,16 @@ int calc_nrows_from_rank(const param_t params, const int rank);
 void write_values(const char * final_state_file, const char * av_vels_file,
     const param_t params, speed_t* cells, int* obstacles, float* av_vels);
 
-void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr,
+void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr, speed_t** tmp_tmp_cells_ptr,
     int** obstacles_ptr, float** av_vels_ptr);
 
 float timestep(const param_t params, const accel_area_t accel_area,
-    speed_t* cells, speed_t* tmp_cells, int* obstacles);
+    speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles);
 void accelerate_flow(const param_t params, const accel_area_t accel_area,
     speed_t* cells, int* obstacles);
 void propagate(const param_t params, speed_t* cells, speed_t* tmp_cells);
 float rebound_collision_av_velocity(const param_t params, speed_t* cells, speed_t* tmp_cells, int* obstacles);
+float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles);
 
 /* Sum all the densities in the grid.
 ** The total should remain constant from one timestep to the next. */

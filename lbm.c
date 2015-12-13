@@ -61,6 +61,12 @@
 #include "lbm.h"
 #include "mpi.h"
 
+void swap(speed_t** one, speed_t** two) {
+  speed_t* temp = *one;
+  *one = *two;
+  *two = temp;
+}
+
 /*
 ** main program:
 ** initialise, timestep loop, finalise
@@ -77,8 +83,9 @@ int main(int argc, char* argv[])
     param_t  params;              /* struct to hold parameter values */
     speed_t* cells     = NULL;    /* grid containing fluid densities */
     speed_t* tmp_cells = NULL;    /* scratch space */
+    speed_t* tmp_tmp_cells = NULL;/* scratch space */
     int*     obstacles = NULL;    /* grid indicating which cells are blocked */
-    float*  av_vels   = NULL;    /* a record of the av. velocity computed for each timestep */
+    float*  av_vels   = NULL;     /* a record of the av. velocity computed for each timestep */
 
     int    ii;                    /*  generic counter */
     struct timeval timstr;        /* structure to hold elapsed time */
@@ -90,8 +97,10 @@ int main(int argc, char* argv[])
     /********************************************/
     /******** Initialize MPI environment ********/
     /********************************************/
+    //omp_set_num_threads(1);
     MPI_Init(&argc, &argv);
     /*int provided;
+    //omp_set_num_threads(8);
     MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
     if(provided != MPI_THREAD_FUNNELED) {
       printf("Cannot support funneled threading! Provided: %d :: %d %d %d %d\n", provided, MPI_THREAD_SINGLE, MPI_THREAD_FUNNELED, MPI_THREAD_SERIALIZED, MPI_THREAD_MULTIPLE);
@@ -144,7 +153,7 @@ int main(int argc, char* argv[])
     }
 
     // Allocate the local arrays
-    allocateLocal(&params, &cells, &tmp_cells);
+    allocateLocal(&params, &cells, &tmp_cells, &tmp_tmp_cells);
 
     printf("Host %s: process %d of %d :: local_cells of size %dx%d\n", hostname, params.rank, params.size, params.loc_ny, params.loc_nx);
 
@@ -170,13 +179,8 @@ int main(int argc, char* argv[])
 
     for (ii = 0; ii < params.max_iters; ii++)
     {
-      //MPI_Barrier(MPI_COMM_WORLD);
-
-      //TODO:
-      //        -See line 137
-      //        -get rid of loc_nxs since loc_nx = params.nx
-
-      av_vels[ii] = timestep(params, accel_area, cells, tmp_cells, obstacles);
+      av_vels[ii] = timestep(params, accel_area, cells, tmp_cells, tmp_tmp_cells, obstacles);
+      swap(&cells, &tmp_tmp_cells);
 
       #ifdef DEBUG
       printf("==timestep: %d==\n", ii);
@@ -184,9 +188,6 @@ int main(int argc, char* argv[])
       printf("tot density: %.12E\n", total_density(params, cells));
       #endif
     }
-
-    const float last_av_vel = av_vels[params.max_iters - 1];
-    printf("LAST AV VEL: %f\n", last_av_vel);
 
     // Final read back of all cell data
     speed_t* final_cells;
@@ -204,15 +205,7 @@ int main(int argc, char* argv[])
       }
 
       // Then he reads data from each of the other ranks and writes that
-      //int k_loc_ny_sum = params.loc_ny;
       for(kk = 1; kk < params.size; kk++) {
-        // First read the size of the data to read back
-        //int k_loc_nx, k_loc_ny;
-        //MPI_Recv(&k_loc_nx, 1, MPI_INT, kk, tag, MPI_COMM_WORLD, &status);
-        //MPI_Recv(&k_loc_ny, 1, MPI_INT, kk, tag, MPI_COMM_WORLD, &status);
-
-        // Record how far down the (global) grid we are
-        //printf("%d %d ... %d\n", k_loc_nx, k_loc_ny, k_loc_ny_sum);
         for (ii = 0; ii < params.loc_nys[kk]; ii++)
         {
           for (jj = 0; jj < params.loc_nx; jj++)
@@ -220,13 +213,9 @@ int main(int argc, char* argv[])
             MPI_Recv(final_cells[get_global_y_coord(params, kk, ii) * params.nx + jj].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
           }
         }
-        //k_loc_ny_sum += k_loc_ny;
       }
     } else {
       // Non-master ranks send all their data (not the halos) to master
-      // First send the size of the data
-      //MPI_Send(&params.loc_nx, 1, MPI_INT, MASTER, tag, MPI_COMM_WORLD);
-      //MPI_Send(&params.loc_ny, 1, MPI_INT, MASTER, tag, MPI_COMM_WORLD);
       for (ii = 0; ii < params.loc_ny; ii++)
       {
         for (jj = 0; jj < params.loc_nx; jj++)
@@ -249,6 +238,7 @@ int main(int argc, char* argv[])
       printf("Writing results...\n");
       write_values(final_state_file, av_vels_file, params, final_cells, obstacles, av_vels);
 
+      const float last_av_vel = av_vels[params.max_iters - 1];
       printf("==done==\n");
       printf("Reynolds number:\t\t%.12E\n", calc_reynolds(params,last_av_vel));
       printf("Elapsed time:\t\t\t%.6lf (s)\n", toc-tic);
@@ -268,7 +258,7 @@ int main(int argc, char* argv[])
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
 
-    finalise(&cells, &tmp_cells, &obstacles, &av_vels);
+    finalise(&cells, &tmp_cells, &tmp_tmp_cells, &obstacles, &av_vels);
     if(params.rank == MASTER) free(final_cells);
     return EXIT_SUCCESS;
 }
