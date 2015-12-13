@@ -228,7 +228,6 @@ void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr
     float w0,w1,w2;       /* weighting factors */
 
     /* Allocate arrays, including halo space */
-    printf("Allocating %d rows * %d cols.\n", params->loc_ny, params->loc_nx);
     *cells_ptr = (speed_t*) malloc(sizeof(speed_t)*(params->loc_ny * params->loc_nx));
     if (*cells_ptr == NULL) DIE("Cannot allocate memory for cells");
 
