@@ -147,26 +147,35 @@ float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t*
 
   int tag = 0;           // scope for adding extra information to a message
   MPI_Status status;     // struct used by MPI_Recv
+  MPI_Request request_d;   // request struct used in non-blocking comms calls
+  MPI_Request request_u;   // request struct used in non-blocking comms calls
 
   // send below, receive from above
-  MPI_Sendrecv(params.sendbuf_d, params.loc_nx * 3, MPI_FLOAT, params.down, tag,
-               params.recvbuf,   params.loc_nx * 3, MPI_FLOAT, params.up,   tag, MPI_COMM_WORLD, &status);
+  MPI_Isend(params.sendbuf_d, params.loc_nx * 3, MPI_FLOAT, params.down, tag, MPI_COMM_WORLD, &request_d);
+  MPI_Isend(params.sendbuf_u, params.loc_nx * 3, MPI_FLOAT, params.up,   tag, MPI_COMM_WORLD, &request_u);
 
+  MPI_Irecv(params.recvbuf_u, params.loc_nx * 3, MPI_FLOAT, params.up,   tag, MPI_COMM_WORLD, &request_d);
+  MPI_Irecv(params.recvbuf_d, params.loc_nx * 3, MPI_FLOAT, params.down, tag, MPI_COMM_WORLD, &request_u);
+
+  //MPI_Sendrecv(params.sendbuf_d, params.loc_nx * 3, MPI_FLOAT, params.down, tag,
+  //             params.recvbuf,   params.loc_nx * 3, MPI_FLOAT, params.up,   tag, MPI_COMM_WORLD, &status);
+  MPI_Wait(&request_d, &status);
   for(jj = 0; jj < params.loc_nx; jj++)
   {
-    tmp_cells[(params.loc_ny - 1) * params.loc_nx + jj].speeds[7] = params.recvbuf[jj * 3 + 0];
-    tmp_cells[(params.loc_ny - 1) * params.loc_nx + jj].speeds[4] = params.recvbuf[jj * 3 + 1];
-    tmp_cells[(params.loc_ny - 1) * params.loc_nx + jj].speeds[8] = params.recvbuf[jj * 3 + 2];
+    tmp_cells[(params.loc_ny - 1) * params.loc_nx + jj].speeds[7] = params.recvbuf_u[jj * 3 + 0];
+    tmp_cells[(params.loc_ny - 1) * params.loc_nx + jj].speeds[4] = params.recvbuf_u[jj * 3 + 1];
+    tmp_cells[(params.loc_ny - 1) * params.loc_nx + jj].speeds[8] = params.recvbuf_u[jj * 3 + 2];
   }
 
   // send above, receive from below
-  MPI_Sendrecv(params.sendbuf_u, params.loc_nx * 3, MPI_FLOAT, params.up,   tag,
-               params.recvbuf,   params.loc_nx * 3, MPI_FLOAT, params.down, tag, MPI_COMM_WORLD, &status);
+  //MPI_Sendrecv(params.sendbuf_u, params.loc_nx * 3, MPI_FLOAT, params.up,   tag,
+  //             params.recvbuf,   params.loc_nx * 3, MPI_FLOAT, params.down, tag, MPI_COMM_WORLD, &status);
+  MPI_Wait(&request_u, &status);
   for(jj = 0; jj < params.loc_nx; jj++)
   {
-    tmp_cells[jj].speeds[6] = params.recvbuf[jj * 3 + 0];
-    tmp_cells[jj].speeds[2] = params.recvbuf[jj * 3 + 1];
-    tmp_cells[jj].speeds[5] = params.recvbuf[jj * 3 + 2];
+    tmp_cells[jj].speeds[6] = params.recvbuf_d[jj * 3 + 0];
+    tmp_cells[jj].speeds[2] = params.recvbuf_d[jj * 3 + 1];
+    tmp_cells[jj].speeds[5] = params.recvbuf_d[jj * 3 + 2];
   }
 
   MPI_Barrier(MPI_COMM_WORLD);

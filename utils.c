@@ -279,7 +279,8 @@ void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr
     // Allocate send/receive buffers
     params->sendbuf_d = (float*)malloc(sizeof(float) * params->loc_nx * 3);
     params->sendbuf_u = (float*)malloc(sizeof(float) * params->loc_nx * 3);
-    params->recvbuf = (float*)malloc(sizeof(float) * params->loc_nx * 3);
+    params->recvbuf_d = (float*)malloc(sizeof(float) * params->loc_nx * 3);
+    params->recvbuf_u = (float*)malloc(sizeof(float) * params->loc_nx * 3);
 }
 
 int get_global_y_coord(const param_t params, int rank, int ii) {

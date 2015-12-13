@@ -28,7 +28,8 @@ typedef struct {
     int up;            // the rank of the process above
     float* sendbuf_d;
     float* sendbuf_u;
-    float* recvbuf;
+    float* recvbuf_d;
+    float* recvbuf_u;
 
     int max_iters;      /* no. of iterations */
     int reynolds_dim;  /* dimension for Reynolds number */
