@@ -199,40 +199,21 @@ int main(int argc, char* argv[])
 
     // Final read back of all cell data
     speed_t* final_cells;
-    int tag, jj, kk;
-    MPI_Status status;     // struct used by MPI_Recv
-    if(params.rank == MASTER) {
-      final_cells = (speed_t*)malloc(sizeof(speed_t) * params.nx * params.ny);
-      // Master first copies his data to the final array
-      for (ii = 0; ii < params.loc_ny; ii++)
+    if(params.rank == MASTER) final_cells = (speed_t*)malloc(sizeof(speed_t) * params.nx * params.ny);
+    int* rcounts = (int*)malloc(sizeof(int) * params.size);
+    int* rdispls = (int*)malloc(sizeof(int) * params.size);
+    for(ii = 0; ii < params.size; ii++)
+    {
+      rcounts[ii] = params.loc_nys[ii] * params.loc_nxs[ii];
+      if(ii == 0)
       {
-        for (jj = 0; jj < params.loc_nx; jj++)
-        {
-          memcpy(final_cells[get_global_y_coord(params, params.rank, ii) * params.nx + jj].speeds, cells[ii*params.loc_nx + jj].speeds, sizeof(float)*NSPEEDS);
-        }
-      }
-      printf("copied my own\n");
-      // Then he reads data from each of the other ranks and writes that
-      for(kk = 1; kk < params.size; kk++) {
-        for (ii = 0; ii < params.loc_nys[kk]; ii++)
-        {
-          for (jj = 0; jj < params.loc_nx; jj++)
-          {
-            //printf("receiving from %d: %d,%d\n", kk, ii,jj);
-            MPI_Recv(&final_cells[get_global_y_coord(params, kk, ii) * params.nx + jj], 1, mpi_speed_type, kk, tag, MPI_COMM_WORLD, &status);
-          }
-        }
-      }
-    } else {
-      // Non-master ranks send all their data (not the halos) to master
-      for (ii = 0; ii < params.loc_ny; ii++)
-      {
-        for (jj = 0; jj < params.loc_nx; jj++)
-        {
-          MPI_Send(&cells[ii*params.loc_nx + jj], 1, mpi_speed_type, MASTER, tag, MPI_COMM_WORLD);
-        }
+        rdispls[ii] = 0;
+      } else {
+        rdispls[ii] = rdispls[ii-1] + rcounts[ii-1];
       }
     }
+    MPI_Gatherv(cells, params.loc_nx * params.loc_ny, mpi_speed_type, final_cells, rcounts, rdispls, mpi_speed_type, MASTER, MPI_COMM_WORLD);
+
 
     gettimeofday(&timstr,NULL);
     toc=timstr.tv_sec+(timstr.tv_usec/1000000.0);
