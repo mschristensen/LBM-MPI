@@ -73,7 +73,7 @@ float timestep(const param_t params, const accel_area_t accel_area,
 void accelerate_flow(const param_t params, const accel_area_t accel_area,
     speed_t* cells, int* obstacles);
 float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles);
-
+inline void loop_body(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles, int ii, int jj, int* tot_cells, float* tot_u);
 /* Sum all the densities in the grid.
 ** The total should remain constant from one timestep to the next. */
 float total_density(const param_t params, speed_t* cells);
