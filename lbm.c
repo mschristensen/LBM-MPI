@@ -97,7 +97,7 @@ int main(int argc, char* argv[])
     /********************************************/
     /******** Initialize MPI environment ********/
     /********************************************/
-    //omp_set_num_threads(1);
+    //omp_set_num_threads(2);
     MPI_Init(&argc, &argv);
     /*int provided;
     //omp_set_num_threads(8);
@@ -203,13 +203,14 @@ int main(int argc, char* argv[])
           memcpy(final_cells[get_global_y_coord(params, params.rank, ii) * params.nx + jj].speeds, cells[ii*params.loc_nx + jj].speeds, sizeof(float)*NSPEEDS);
         }
       }
-
+      printf("copied my own\n");
       // Then he reads data from each of the other ranks and writes that
       for(kk = 1; kk < params.size; kk++) {
         for (ii = 0; ii < params.loc_nys[kk]; ii++)
         {
           for (jj = 0; jj < params.loc_nx; jj++)
           {
+            //printf("receiving from %d: %d,%d\n", kk, ii,jj);
             MPI_Recv(final_cells[get_global_y_coord(params, kk, ii) * params.nx + jj].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
           }
         }

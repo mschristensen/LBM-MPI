@@ -155,43 +155,32 @@ float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t*
   MPI_Isend(params.sendbuf_u, params.loc_nx * 3, MPI_FLOAT, params.up,   tag, MPI_COMM_WORLD, &request_u);
   MPI_Irecv(params.recvbuf_u, params.loc_nx * 3, MPI_FLOAT, params.up,   tag, MPI_COMM_WORLD, &request_d);
   MPI_Irecv(params.recvbuf_d, params.loc_nx * 3, MPI_FLOAT, params.down, tag, MPI_COMM_WORLD, &request_u);
-
-  //#pragma omp parallel default(none) shared(cells,tmp_cells,obstacles,tot_u,tot_cells) private(ii,jj,kk,u_x,u_y,u_sq,local_density,u,d_equ) firstprivate(c_sq,w0,w1,w2)
+  MPI_Wait(&request_d, &status);
+  for(ll = 0; ll < params.loc_nx; ll++)
   {
-    //#pragma omp for reduction(+:tot_u,tot_cells) schedule(guided)
+    tmp_cells[(params.loc_ny - 1) * params.loc_nx + ll].speeds[7] = params.recvbuf_u[ll * 3 + 0];
+    tmp_cells[(params.loc_ny - 1) * params.loc_nx + ll].speeds[4] = params.recvbuf_u[ll * 3 + 1];
+    tmp_cells[(params.loc_ny - 1) * params.loc_nx + ll].speeds[8] = params.recvbuf_u[ll * 3 + 2];
+  }
+  MPI_Wait(&request_u, &status);
+  for(ll = 0; ll < params.loc_nx; ll++)
+  {
+    tmp_cells[ll].speeds[6] = params.recvbuf_d[ll * 3 + 0];
+    tmp_cells[ll].speeds[2] = params.recvbuf_d[ll * 3 + 1];
+    tmp_cells[ll].speeds[5] = params.recvbuf_d[ll * 3 + 2];
+  }
+
+  #pragma omp parallel default(none) shared(cells,tmp_cells,tmp_tmp_cells,obstacles,tot_u,tot_cells) private(ii,jj,kk,yy,ll,u_x,u_y,u_sq,local_density,u,d_equ,status,request_u,request_d) firstprivate(c_sq,w0,w1,w2,x_w,x_e,y_s,y_n)
+  {
+    #pragma omp for reduction(+:tot_u,tot_cells) schedule(guided)
     // loop over all cells, but start *after* the first halo so as to do computation that
     // doesnt need halo data first. By the time this is done, hopefully wont have to wait
     // long in MPI_Wait for the async receive to have completed!
-    for (yy = 1; yy < params.loc_ny + 1; yy++)
+    for (yy = 0; yy < params.loc_ny; yy++)
     {
       ii = yy;
       for (jj = 0; jj < params.loc_nx; jj++)
       {
-        // If this is the last halo, wait to receive the data
-        if(ii == params.loc_ny - 1 && jj == 0) {
-          MPI_Wait(&request_d, &status);
-          for(ll = 0; ll < params.loc_nx; ll++)
-          {
-            tmp_cells[(params.loc_ny - 1) * params.loc_nx + ll].speeds[7] = params.recvbuf_u[ll * 3 + 0];
-            tmp_cells[(params.loc_ny - 1) * params.loc_nx + ll].speeds[4] = params.recvbuf_u[ll * 3 + 1];
-            tmp_cells[(params.loc_ny - 1) * params.loc_nx + ll].speeds[8] = params.recvbuf_u[ll * 3 + 2];
-          }
-        }
-        // if this is the row "after" the last halo, we are on the *first* halo (which we originally missed)
-        // So now we can wait until we have received the data
-        else if(ii == params.loc_ny) {
-          ii = 0;
-          if(jj == 0) {
-            MPI_Wait(&request_u, &status);
-            for(ll = 0; ll < params.loc_nx; ll++)
-            {
-              tmp_cells[ll].speeds[6] = params.recvbuf_d[ll * 3 + 0];
-              tmp_cells[ll].speeds[2] = params.recvbuf_d[ll * 3 + 1];
-              tmp_cells[ll].speeds[5] = params.recvbuf_d[ll * 3 + 2];
-            }
-          }
-        }
-
         // Don't propagate the halos, they have already been done!
         if(ii != 0 && ii != params.loc_ny - 1) {
           // determine indices of axis-direction neighbours
