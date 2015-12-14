@@ -79,7 +79,6 @@ int main(int argc, char* argv[])
     char * param_file = NULL;
 
     accel_area_t accel_area;
-
     param_t  params;              /* struct to hold parameter values */
     speed_t* cells     = NULL;    /* grid containing fluid densities */
     speed_t* tmp_cells = NULL;    /* scratch space */
@@ -127,6 +126,15 @@ int main(int argc, char* argv[])
 
     /* determine the RANK of the current process [0:SIZE-1] */
     MPI_Comm_rank( MPI_COMM_WORLD, &(params.rank) );
+
+    MPI_Datatype mpi_speed_type;
+    const int nblocks = 1;
+    int blocklengths[1] = { NSPEEDS };
+    MPI_Datatype types[1] = { MPI_FLOAT };
+    MPI_Aint offsets[1];
+    offsets[0] = offsetof(speed_t, speeds);
+    MPI_Type_create_struct(nblocks, blocklengths, offsets, types, &mpi_speed_type);
+    MPI_Type_commit(&mpi_speed_type);
 
     // LBM initialization
     parse_args(argc, argv, &final_state_file, &av_vels_file, &param_file);
@@ -211,7 +219,7 @@ int main(int argc, char* argv[])
           for (jj = 0; jj < params.loc_nx; jj++)
           {
             //printf("receiving from %d: %d,%d\n", kk, ii,jj);
-            MPI_Recv(final_cells[get_global_y_coord(params, kk, ii) * params.nx + jj].speeds, NSPEEDS, MPI_FLOAT, kk, tag, MPI_COMM_WORLD, &status);
+            MPI_Recv(&final_cells[get_global_y_coord(params, kk, ii) * params.nx + jj], 1, mpi_speed_type, kk, tag, MPI_COMM_WORLD, &status);
           }
         }
       }
@@ -221,7 +229,7 @@ int main(int argc, char* argv[])
       {
         for (jj = 0; jj < params.loc_nx; jj++)
         {
-          MPI_Send(cells[ii*params.loc_nx + jj].speeds, NSPEEDS, MPI_FLOAT, MASTER, tag, MPI_COMM_WORLD);
+          MPI_Send(&cells[ii*params.loc_nx + jj], 1, mpi_speed_type, MASTER, tag, MPI_COMM_WORLD);
         }
       }
     }
