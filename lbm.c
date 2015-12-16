@@ -298,7 +298,7 @@ void write_values(const char * final_state_file, const char * av_vels_file,
             // translate from bbox to global coords
             ii = yy - params.obs_bbox.y1;
             jj = xx - params.obs_bbox.x1;
-            printf("obs(x1,x2,y1,y2)=(%d,%d,%d,%d)\t(yy,xx)=(%d,%d)\t(ii, jj)=(%d,%d)\n",params.obs_bbox.x1,params.obs_bbox.x2,params.obs_bbox.y1,params.obs_bbox.y2, yy,xx,ii,jj);
+
             /* an occupied cell */
             if (obstacles[ii*params.nx + jj])
             {
