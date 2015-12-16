@@ -10,7 +10,7 @@
 #include "mpi.h"
 
 float timestep(const param_t params, const accel_area_t accel_area,
-    speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles)
+    speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, char* obstacles)
 {
     accelerate_flow(params,accel_area,cells,obstacles);
     //propagate(params,cells,tmp_cells);
@@ -19,7 +19,7 @@ float timestep(const param_t params, const accel_area_t accel_area,
 }
 
 void accelerate_flow(const param_t params, const accel_area_t accel_area,
-    speed_t* cells, int* obstacles)
+    speed_t* cells, char* obstacles)
 {
     int ii,jj;     // generic counters
     float w1,w2;  // weighting factors
@@ -86,7 +86,7 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
     }
 }
 
-float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles)
+float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, char* obstacles)
 {
   int ii,jj,kk,yy,ll;  // generic counters
   int x_e,x_w,y_n,y_s;  // indices of neighbouring cells
@@ -230,7 +230,7 @@ float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t*
 }
 
 
-inline void loop_body(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles, int ii, int jj, int* tot_cells, float* tot_u)
+inline void loop_body(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, char* obstacles, int ii, int jj, int* tot_cells, float* tot_u)
 {
   int kk;
   int y_n, x_e, y_s, x_w;

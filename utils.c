@@ -94,7 +94,7 @@ void parse_args (int argc, char* argv[],
     }
 }
 
-void initialise(const char* param_file, accel_area_t * accel_area, param_t* params, int** obstacles_ptr, float** av_vels_ptr)
+void initialise(const char* param_file, accel_area_t * accel_area, param_t* params, char** obstacles_ptr, float** av_vels_ptr)
 {
   int    ii,jj, kk;          /* generic counters */
   FILE   *fp;            /* file pointer */
@@ -177,7 +177,7 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
   fclose(fp);
 
   // Allocate arrays
-  int* tmp_obstacles = (int*) malloc(sizeof(int)*(params->ny*params->nx));
+  char* tmp_obstacles = (char*) malloc(sizeof(char)*(params->ny*params->nx));
   if (tmp_obstacles == NULL) DIE("Cannot allocate memory for patches");
 
   *av_vels_ptr = (float*) malloc(sizeof(float)*(params->max_iters));
@@ -218,7 +218,7 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
   bounding_box(tmp_obstacles, params);
 
   // Allocate actual obstacles array of bounding box size, i.e. ignoring regions outside of bbox
-  *obstacles_ptr = (int*) malloc(sizeof(int)*(params->ny*params->nx));
+  *obstacles_ptr = (char*) malloc(sizeof(char)*(params->ny*params->nx));
   if (*obstacles_ptr == NULL) DIE("Cannot allocate memory for patches");
   for(ii = 0; ii < params->ny; ii++)
   {
@@ -278,21 +278,6 @@ void allocateLocal(param_t* params, speed_t** cells_ptr, speed_t** tmp_cells_ptr
             (*cells_ptr)[ii*params->loc_nx + jj].speeds[6] = w2;
             (*cells_ptr)[ii*params->loc_nx + jj].speeds[7] = w2;
             (*cells_ptr)[ii*params->loc_nx + jj].speeds[8] = w2;
-
-            // TODO: remove: initialising all for debug purposes
-            // centre
-            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[0] = -1.0;
-            // axis directions
-            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[1] = -1.0;
-            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[2] = -1.0;
-            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[3] = -1.0;
-            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[4] = -1.0;
-            // diagonals
-            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[5] = -1.0;
-            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[6] = -1.0;
-            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[7] = -1.0;
-            (*tmp_cells_ptr)[ii*params->loc_nx + jj].speeds[8] = -1.0;
-
         }
     }
 
@@ -315,7 +300,7 @@ int get_global_y_coord(const param_t params, int rank, int ii) {
 
 // Calculate the bounding box of the obstacles so that we dont do any
 // unnecessary computation
-void bounding_box(int* obstacles, param_t* params)
+void bounding_box(char* obstacles, param_t* params)
 {
   int ii, jj;
   int min_x = params->nx - 1;
@@ -363,7 +348,7 @@ void bounding_box(int* obstacles, param_t* params)
 }
 
 void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr, speed_t** tmp_tmp_cells_ptr,
-    int** obstacles_ptr, float** av_vels_ptr)
+    char** obstacles_ptr, float** av_vels_ptr)
 {
     /* Free allocated memory */
     free(*cells_ptr);

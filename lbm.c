@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
     speed_t* cells     = NULL;    /* grid containing fluid densities */
     speed_t* tmp_cells = NULL;    /* scratch space */
     speed_t* tmp_tmp_cells = NULL;/* scratch space */
-    int*     obstacles = NULL;    /* grid indicating which cells are blocked */
+    char*     obstacles = NULL;    /* grid indicating which cells are blocked */
     float*  av_vels   = NULL;     /* a record of the av. velocity computed for each timestep */
 
     int    ii;                    /*  generic counter */
@@ -269,7 +269,7 @@ int calc_nrows_from_rank(const param_t params, const int rank)
 }
 
 void write_values(const char * final_state_file, const char * av_vels_file,
-    const param_t params, speed_t* cells, int* obstacles, float* av_vels)
+    const param_t params, speed_t* cells, char* obstacles, float* av_vels)
 {
     FILE* fp;                     /* file pointer */
     int xx,yy,ii,jj,kk;                 /* generic counters */
@@ -279,7 +279,7 @@ void write_values(const char * final_state_file, const char * av_vels_file,
     float u_x;                   /* x-component of velocity in grid cell */
     float u_y;                   /* y-component of velocity in grid cell */
     float u;                     /* norm--root of summed squares--of u_x and u_y */
-    int obs;
+    char obs;
     fp = fopen(final_state_file, "w");
 
     if (fp == NULL)
