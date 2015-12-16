@@ -23,6 +23,7 @@ typedef struct {
 /* struct to hold the parameter values */
 typedef struct {
     bbox_t obs_bbox;
+    bbox_t original_grid;
 
     int nx;            /* no. of cells in x-direction */
     int ny;            /* no. of cells in y-direction */

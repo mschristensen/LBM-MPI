@@ -216,13 +216,16 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
 
   // Redefine params by calculating the bounding box
   bounding_box(tmp_obstacles, params);
+  printf("nx %d ny %d\n", params->nx, params->ny);
+  printf("bbox: x1 %d x2 %d y1 %d y2 %d\n", params->obs_bbox.x1, params->obs_bbox.x2, params->obs_bbox.y1, params->obs_bbox.y2);
+  printf("orig: x1 %d x2 %d y1 %d y2 %d\n", params->original_grid.x1, params->original_grid.x2, params->original_grid.y1, params->original_grid.y2);
   //realloc for new bounded grid
   // Allocate arrays
   *obstacles_ptr = (int*) malloc(sizeof(int)*(params->ny*params->nx));
   if (*obstacles_ptr == NULL) DIE("Cannot allocate memory for patches");
-  for(ii = 0; ii < params->obs_bbox.y2 - params->obs_bbox.y1; ii++)
+  for(ii = 0; ii < params->ny; ii++)
   {
-    for(jj = 0; jj < params->obs_bbox.x2 - params->obs_bbox.x1; jj++)
+    for(jj = 0; jj < params->nx; jj++)
     {
       (*obstacles_ptr)[ii*params->nx + jj] = (tmp_obstacles)[(ii + params->obs_bbox.y1) * params->nx + (jj + params->obs_bbox.x1)];
     }
@@ -231,9 +234,9 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
   //TODO: redefine accel idx by adding on result when idx = 0 or something
   //Could be one off?
   if(accel_area->col_or_row == ACCEL_ROW) {
-    accel_area->idx = accel_area->idx - (params->obs_bbox.y1 + 1);
+    accel_area->idx = accel_area->idx - (params->obs_bbox.y1);
   } else {
-    accel_area->idx = accel_area->idx - (params->obs_bbox.x1 + 1);
+    accel_area->idx = accel_area->idx - (params->obs_bbox.x1);
   }
   free(obstacles);
 
@@ -333,12 +336,24 @@ void bounding_box(int* obstacles, param_t* params)
     }
   }
   bbox_t box;
+  min_x = (min_x - 1 < 0) ? 0 : min_x - 1;
+  max_x = (max_x + 1 > params->nx - 1) ? params->nx - 1 : max_x + 1;
+  min_y = (min_y - 1 < 0) ? 0 : min_y - 1;
+  max_y = (max_y + 1 > params->ny - 1) ? params->ny - 1: max_y + 1;
   box.x1 = min_x;
   box.x2 = max_x;
   box.y1 = min_y;
   box.y2 = max_y;
   params->obs_bbox = box;
 
+  bbox_t orig;
+  orig.x1 = 0;
+  orig.x2 = params->nx - 1;
+  orig.y1 = 0;
+  orig.y2 = params->ny - 1;
+  params->original_grid = orig;
+
+  // plus one because 0 based
   params->nx = (max_x - min_x) + 1;
   params->ny = (max_y - min_y) + 1;
 }

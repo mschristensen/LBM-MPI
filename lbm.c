@@ -139,7 +139,6 @@ int main(int argc, char* argv[])
     // LBM initialization
     parse_args(argc, argv, &final_state_file, &av_vels_file, &param_file);
     initialise(param_file, &accel_area, &params, &obstacles, &av_vels);
-    printf("nx %d ny %d\n", params.nx, params.ny);
 
     /* determine process ranks to the left and right of rank
     ** respecting periodic boundary conditions */
@@ -214,7 +213,27 @@ int main(int argc, char* argv[])
       }
     }
     MPI_Gatherv(cells, params.loc_nx * params.loc_ny, mpi_speed_type, final_cells, rcounts, rdispls, mpi_speed_type, MASTER, MPI_COMM_WORLD);
+    /*
+    speed_t* final_cells_filled = (speed_t*)malloc(sizeof(speed_t) * params.original_grid.x2 * params.original_grid.y2);
+    for(ii = 0; ii < params.original_grid.y2; ii++)
+    {
+      for(jj = 0; jj < params.original_grid.x2; jj++)
+      {
+        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[0] = w0;
+        // axis directions
+        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[1] = w1;
+        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[2] = w1;
+        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[3] = w1;
+        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[4] = w1;
+        // diagonals
+        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[5] = w2;
+        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[6] = w2;
+        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[7] = w2;
+        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[8] = w2;
+      }
+    }
 
+    memcpy(&final_cells_filled[params.obs_bbox.x1], final_cells, sizeof(speed_t) * params.nx * params.ny);*/
 
     gettimeofday(&timstr,NULL);
     toc=timstr.tv_sec+(timstr.tv_usec/1000000.0);
