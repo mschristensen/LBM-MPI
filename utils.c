@@ -216,28 +216,25 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
 
   // Redefine params by calculating the bounding box
   bounding_box(tmp_obstacles, params);
-  //printf("nx %d ny %d\n", params->nx, params->ny);
-  //printf("bbox: x1 %d x2 %d y1 %d y2 %d\n", params->obs_bbox.x1, params->obs_bbox.x2, params->obs_bbox.y1, params->obs_bbox.y2);
-  //printf("orig: x1 %d x2 %d y1 %d y2 %d\n", params->original_grid.x1, params->original_grid.x2, params->original_grid.y1, params->original_grid.y2);
-  //realloc for new bounded grid
-  // Allocate arrays
+
+  // Allocate actual obstacles array of bounding box size, i.e. ignoring regions outside of bbox
   *obstacles_ptr = (int*) malloc(sizeof(int)*(params->ny*params->nx));
   if (*obstacles_ptr == NULL) DIE("Cannot allocate memory for patches");
   for(ii = 0; ii < params->ny; ii++)
   {
     for(jj = 0; jj < params->nx; jj++)
     {
-      (*obstacles_ptr)[ii*params->nx + jj] = (tmp_obstacles)[(ii + params->obs_bbox.y1) * params->nx + (jj + params->obs_bbox.x1)];
+      (*obstacles_ptr)[ii*params->nx + jj] = (tmp_obstacles)[(ii + params->obs_bbox.y1) * (params->original_grid.x2 + 1) + (jj + params->obs_bbox.x1)];
     }
   }
 
-  //TODO: redefine accel idx by adding on result when idx = 0 or something
-  //Could be one off?
+  // Translate the accelerated index for bbox coords
   if(accel_area->col_or_row == ACCEL_ROW) {
     accel_area->idx = accel_area->idx - (params->obs_bbox.y1);
   } else {
     accel_area->idx = accel_area->idx - (params->obs_bbox.x1);
   }
+
   free(obstacles);
 
   // Allocate size arrays
@@ -316,6 +313,8 @@ int get_global_y_coord(const param_t params, int rank, int ii) {
   return (sum + ii);
 }
 
+// Calculate the bounding box of the obstacles so that we dont do any
+// unnecessary computation
 void bounding_box(int* obstacles, param_t* params)
 {
   int ii, jj;
@@ -323,6 +322,7 @@ void bounding_box(int* obstacles, param_t* params)
   int min_y = params->nx - 1;
   int max_x = 0;
   int max_y = 0;
+  // find the edges of the box
   for (ii = 0; ii < params->ny; ii++)
   {
     for (jj = 0; jj < params->nx; jj++)
@@ -335,6 +335,8 @@ void bounding_box(int* obstacles, param_t* params)
       }
     }
   }
+
+  // then give bbox a border of 1 so that obstacles contain the region if necessary
   bbox_t box;
   min_x = (min_x - 1 < 0) ? 0 : min_x - 1;
   max_x = (max_x + 1 > params->nx - 1) ? params->nx - 1 : max_x + 1;
@@ -346,6 +348,7 @@ void bounding_box(int* obstacles, param_t* params)
   box.y2 = max_y;
   params->obs_bbox = box;
 
+  // remember the original problem dimensions
   bbox_t orig;
   orig.x1 = 0;
   orig.x2 = params->nx - 1;
@@ -353,7 +356,8 @@ void bounding_box(int* obstacles, param_t* params)
   orig.y2 = params->ny - 1;
   params->original_grid = orig;
 
-  // plus one because 0 based
+  // set new size of problem
+  // (plus one because of 0 based indexing)
   params->nx = (max_x - min_x) + 1;
   params->ny = (max_y - min_y) + 1;
 }

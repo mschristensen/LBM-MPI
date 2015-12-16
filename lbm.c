@@ -165,10 +165,6 @@ int main(int argc, char* argv[])
 
     printf("Host %s: process %d of %d :: local_cells of size %dx%d\n", hostname, params.rank, params.size, params.loc_ny, params.loc_nx);
 
-    /* iterate for max_iters timesteps */
-    gettimeofday(&timstr,NULL);
-    tic=timstr.tv_sec+(timstr.tv_usec/1000000.0);
-
     /*
     // CODE TO INSPECT THE MPI + OPENMP SETUP
     #pragma omp parallel
@@ -184,6 +180,8 @@ int main(int argc, char* argv[])
     }
     return -1;
     */
+    gettimeofday(&timstr,NULL);
+    tic=timstr.tv_sec+(timstr.tv_usec/1000000.0);
 
     for (ii = 0; ii < params.max_iters; ii++)
     {
@@ -196,6 +194,14 @@ int main(int argc, char* argv[])
       printf("tot density: %.12E\n", total_density(params, cells));
       #endif
     }
+
+    gettimeofday(&timstr,NULL);
+    toc=timstr.tv_sec+(timstr.tv_usec/1000000.0);
+    getrusage(RUSAGE_SELF, &ru);
+    timstr=ru.ru_utime;
+    usrtim=timstr.tv_sec+(timstr.tv_usec/1000000.0);
+    timstr=ru.ru_stime;
+    systim=timstr.tv_sec+(timstr.tv_usec/1000000.0);
 
     // Final read back of all cell data
     speed_t* final_cells;
@@ -214,13 +220,6 @@ int main(int argc, char* argv[])
     }
     MPI_Gatherv(cells, params.loc_nx * params.loc_ny, mpi_speed_type, final_cells, rcounts, rdispls, mpi_speed_type, MASTER, MPI_COMM_WORLD);
 
-    gettimeofday(&timstr,NULL);
-    toc=timstr.tv_sec+(timstr.tv_usec/1000000.0);
-    getrusage(RUSAGE_SELF, &ru);
-    timstr=ru.ru_utime;
-    usrtim=timstr.tv_sec+(timstr.tv_usec/1000000.0);
-    timstr=ru.ru_stime;
-    systim=timstr.tv_sec+(timstr.tv_usec/1000000.0);
 
     if(params.rank == MASTER)
     {
@@ -288,14 +287,18 @@ void write_values(const char * final_state_file, const char * av_vels_file,
         DIE("could not open file output file");
     }
 
+    // Loop over original grid size
     for (yy = 0; yy < params.original_grid.y2 + 1; yy++)
     {
         for (xx = 0; xx < params.original_grid.x2 + 1; xx++)
         {
-          if( yy >= params.obs_bbox.y1 && yy <= params.obs_bbox.y2 && xx >= params.obs_bbox.x1 && xx <= params.obs_bbox.x2)
+          // if this is a region inside the bounding box then write the cell data
+          if( yy >= params.obs_bbox.y1 && yy < params.obs_bbox.y2 && xx >= params.obs_bbox.x1 && xx < params.obs_bbox.x2)
           {
+            // translate from bbox to global coords
             ii = yy - params.obs_bbox.y1;
             jj = xx - params.obs_bbox.x1;
+            printf("obs(x1,x2,y1,y2)=(%d,%d,%d,%d)\t(yy,xx)=(%d,%d)\t(ii, jj)=(%d,%d)\n",params.obs_bbox.x1,params.obs_bbox.x2,params.obs_bbox.y1,params.obs_bbox.y2, yy,xx,ii,jj);
             /* an occupied cell */
             if (obstacles[ii*params.nx + jj])
             {
@@ -339,6 +342,7 @@ void write_values(const char * final_state_file, const char * av_vels_file,
                 obs = 0;
             }
           } else {
+            // region outside bbox: consider as an obstacle
             u_x = u_y = u = 0.0;
             pressure = params.density * c_sq;
             obs = 1;
