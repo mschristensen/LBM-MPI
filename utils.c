@@ -130,7 +130,6 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
   if (params->nx < 100) DIE("x dimension of grid in input file was too small (must be >100)");
   if (params->ny < 100) DIE("y dimension of grid in input file was too small (must be >100)");
 
-
   /* read column/row to accelerate */
   char accel_dir_buf[11];
   int idx;
@@ -178,8 +177,8 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
   fclose(fp);
 
   // Allocate arrays
-  *obstacles_ptr = (int*) malloc(sizeof(int)*(params->ny*params->nx));
-  if (*obstacles_ptr == NULL) DIE("Cannot allocate memory for patches");
+  int* tmp_obstacles = (int*) malloc(sizeof(int)*(params->ny*params->nx));
+  if (tmp_obstacles == NULL) DIE("Cannot allocate memory for patches");
 
   *av_vels_ptr = (float*) malloc(sizeof(float)*(params->max_iters));
   if (*av_vels_ptr == NULL) DIE("Cannot allocate memory for av_vels");
@@ -189,7 +188,7 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
   {
     for (jj = 0; jj < params->nx; jj++)
     {
-      (*obstacles_ptr)[ii*params->nx + jj] = 0;
+      (tmp_obstacles)[ii*params->nx + jj] = 0;
     }
   }
 
@@ -209,12 +208,33 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
                   y_pos >= obstacles[kk].obs_y_min &&
                   y_pos <  obstacles[kk].obs_y_max)
               {
-                  (*obstacles_ptr)[ii*params->nx + jj] = 1;
+                  (tmp_obstacles)[ii*params->nx + jj] = 1;
               }
           }
       }
   }
 
+  // Redefine params by calculating the bounding box
+  bounding_box(tmp_obstacles, params);
+  //realloc for new bounded grid
+  // Allocate arrays
+  *obstacles_ptr = (int*) malloc(sizeof(int)*(params->ny*params->nx));
+  if (*obstacles_ptr == NULL) DIE("Cannot allocate memory for patches");
+  for(ii = 0; ii < params->obs_bbox.y2 - params->obs_bbox.y1; ii++)
+  {
+    for(jj = 0; jj < params->obs_bbox.x2 - params->obs_bbox.x1; jj++)
+    {
+      (*obstacles_ptr)[ii*params->nx + jj] = (tmp_obstacles)[(ii + params->obs_bbox.y1) * params->nx + (jj + params->obs_bbox.x1)];
+    }
+  }
+
+  //TODO: redefine accel idx by adding on result when idx = 0 or something
+  //Could be one off?
+  if(accel_area->col_or_row == ACCEL_ROW) {
+    accel_area->idx = accel_area->idx - (params->obs_bbox.y1 + 1);
+  } else {
+    accel_area->idx = accel_area->idx - (params->obs_bbox.x1 + 1);
+  }
   free(obstacles);
 
   // Allocate size arrays
@@ -291,6 +311,36 @@ int get_global_y_coord(const param_t params, int rank, int ii) {
     sum += params.loc_nys[kk];
   }
   return (sum + ii);
+}
+
+void bounding_box(int* obstacles, param_t* params)
+{
+  int ii, jj;
+  int min_x = params->nx - 1;
+  int min_y = params->nx - 1;
+  int max_x = 0;
+  int max_y = 0;
+  for (ii = 0; ii < params->ny; ii++)
+  {
+    for (jj = 0; jj < params->nx; jj++)
+    {
+      if(obstacles[ii*params->nx + jj] == 0) {
+        if(jj < min_x) min_x = jj;
+        if(jj > max_x) max_x = jj;
+        if(ii < min_y) min_y = ii;
+        if(ii > max_y) max_y = ii;
+      }
+    }
+  }
+  bbox_t box;
+  box.x1 = min_x;
+  box.x2 = max_x;
+  box.y1 = min_y;
+  box.y2 = max_y;
+  params->obs_bbox = box;
+
+  params->nx = (max_x - min_x) + 1;
+  params->ny = (max_y - min_y) + 1;
 }
 
 void finalise(speed_t** cells_ptr, speed_t** tmp_cells_ptr, speed_t** tmp_tmp_cells_ptr,

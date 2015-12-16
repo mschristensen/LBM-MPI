@@ -8,6 +8,13 @@
 #define BOX_X_SIZE (100.0)
 #define BOX_Y_SIZE (100.0)
 
+typedef struct {
+  int x1;
+  int x2;
+  int y1;
+  int y2;
+} bbox_t;
+
 /* struct to hold the 'speed' values */
 typedef struct {
     float speeds[NSPEEDS];
@@ -15,6 +22,8 @@ typedef struct {
 
 /* struct to hold the parameter values */
 typedef struct {
+    bbox_t obs_bbox;
+
     int nx;            /* no. of cells in x-direction */
     int ny;            /* no. of cells in y-direction */
 
@@ -74,6 +83,9 @@ void accelerate_flow(const param_t params, const accel_area_t accel_area,
     speed_t* cells, int* obstacles);
 float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles);
 inline void loop_body(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, int* obstacles, int ii, int jj, int* tot_cells, float* tot_u);
+
+void bounding_box(int* obstacles, param_t* params);
+
 /* Sum all the densities in the grid.
 ** The total should remain constant from one timestep to the next. */
 float total_density(const param_t params, speed_t* cells);

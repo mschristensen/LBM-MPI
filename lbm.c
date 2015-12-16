@@ -139,6 +139,7 @@ int main(int argc, char* argv[])
     // LBM initialization
     parse_args(argc, argv, &final_state_file, &av_vels_file, &param_file);
     initialise(param_file, &accel_area, &params, &obstacles, &av_vels);
+    printf("nx %d ny %d\n", params.nx, params.ny);
 
     /* determine process ranks to the left and right of rank
     ** respecting periodic boundary conditions */
