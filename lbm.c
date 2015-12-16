@@ -213,27 +213,6 @@ int main(int argc, char* argv[])
       }
     }
     MPI_Gatherv(cells, params.loc_nx * params.loc_ny, mpi_speed_type, final_cells, rcounts, rdispls, mpi_speed_type, MASTER, MPI_COMM_WORLD);
-    /*
-    speed_t* final_cells_filled = (speed_t*)malloc(sizeof(speed_t) * params.original_grid.x2 * params.original_grid.y2);
-    for(ii = 0; ii < params.original_grid.y2; ii++)
-    {
-      for(jj = 0; jj < params.original_grid.x2; jj++)
-      {
-        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[0] = w0;
-        // axis directions
-        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[1] = w1;
-        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[2] = w1;
-        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[3] = w1;
-        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[4] = w1;
-        // diagonals
-        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[5] = w2;
-        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[6] = w2;
-        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[7] = w2;
-        final_cells_filled[ii*params.original_grid.x2 + jj].speeds[8] = w2;
-      }
-    }
-
-    memcpy(&final_cells_filled[params.obs_bbox.x1], final_cells, sizeof(speed_t) * params.nx * params.ny);*/
 
     gettimeofday(&timstr,NULL);
     toc=timstr.tv_sec+(timstr.tv_usec/1000000.0);
@@ -294,14 +273,14 @@ void write_values(const char * final_state_file, const char * av_vels_file,
     const param_t params, speed_t* cells, int* obstacles, float* av_vels)
 {
     FILE* fp;                     /* file pointer */
-    int ii,jj,kk;                 /* generic counters */
+    int xx,yy,ii,jj,kk;                 /* generic counters */
     const float c_sq = 1.0/3.0;  /* sq. of speed of sound */
     float local_density;         /* per grid cell sum of densities */
     float pressure;              /* fluid pressure in grid cell */
     float u_x;                   /* x-component of velocity in grid cell */
     float u_y;                   /* y-component of velocity in grid cell */
     float u;                     /* norm--root of summed squares--of u_x and u_y */
-
+    int obs;
     fp = fopen(final_state_file, "w");
 
     if (fp == NULL)
@@ -309,15 +288,20 @@ void write_values(const char * final_state_file, const char * av_vels_file,
         DIE("could not open file output file");
     }
 
-    for (ii = 0; ii < params.ny; ii++)
+    for (yy = 0; yy < params.original_grid.y2 + 1; yy++)
     {
-        for (jj = 0; jj < params.nx; jj++)
+        for (xx = 0; xx < params.original_grid.x2 + 1; xx++)
         {
+          if( yy >= params.obs_bbox.y1 && yy <= params.obs_bbox.y2 && xx >= params.obs_bbox.x1 && xx <= params.obs_bbox.x2)
+          {
+            ii = yy - params.obs_bbox.y1;
+            jj = xx - params.obs_bbox.x1;
             /* an occupied cell */
             if (obstacles[ii*params.nx + jj])
             {
                 u_x = u_y = u = 0.0;
                 pressure = params.density * c_sq;
+                obs = 1;
             }
             /* no obstacle */
             else
@@ -352,11 +336,15 @@ void write_values(const char * final_state_file, const char * av_vels_file,
 
                 /* compute pressure */
                 pressure = local_density * c_sq;
+                obs = 0;
             }
-
-            /* write to file */
-            fprintf(fp,"%d %d %.12E %.12E %.12E %.12E %d\n",
-                jj,ii,u_x,u_y,u,pressure,obstacles[ii*params.nx + jj]);
+          } else {
+            u_x = u_y = u = 0.0;
+            pressure = params.density * c_sq;
+            obs = 1;
+          }
+          /* write to file */
+          fprintf(fp,"%d %d %.12E %.12E %.12E %.12E %d\n",xx,yy,u_x,u_y,u,pressure,obs);
         }
     }
 

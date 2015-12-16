@@ -216,9 +216,9 @@ void initialise(const char* param_file, accel_area_t * accel_area, param_t* para
 
   // Redefine params by calculating the bounding box
   bounding_box(tmp_obstacles, params);
-  printf("nx %d ny %d\n", params->nx, params->ny);
-  printf("bbox: x1 %d x2 %d y1 %d y2 %d\n", params->obs_bbox.x1, params->obs_bbox.x2, params->obs_bbox.y1, params->obs_bbox.y2);
-  printf("orig: x1 %d x2 %d y1 %d y2 %d\n", params->original_grid.x1, params->original_grid.x2, params->original_grid.y1, params->original_grid.y2);
+  //printf("nx %d ny %d\n", params->nx, params->ny);
+  //printf("bbox: x1 %d x2 %d y1 %d y2 %d\n", params->obs_bbox.x1, params->obs_bbox.x2, params->obs_bbox.y1, params->obs_bbox.y2);
+  //printf("orig: x1 %d x2 %d y1 %d y2 %d\n", params->original_grid.x1, params->original_grid.x2, params->original_grid.y1, params->original_grid.y2);
   //realloc for new bounded grid
   // Allocate arrays
   *obstacles_ptr = (int*) malloc(sizeof(int)*(params->ny*params->nx));
