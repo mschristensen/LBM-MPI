@@ -13,8 +13,6 @@ float timestep(const param_t params, const accel_area_t accel_area,
     speed_t* cells, speed_t* tmp_cells, speed_t* tmp_tmp_cells, char* obstacles)
 {
     accelerate_flow(params,accel_area,cells,obstacles);
-    //propagate(params,cells,tmp_cells);
-    //return rebound_collision_av_velocity(params,cells,tmp_cells,obstacles);
     return d2q9bgk(params,cells,tmp_cells,tmp_tmp_cells,obstacles);
 }
 
@@ -91,11 +89,6 @@ float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t*
   int ii,jj,kk,yy,ll;  // generic counters
   int x_e,x_w,y_n,y_s;  // indices of neighbouring cells
 
-  float c_sq = 1.0/3.0;  /* square of speed of sound */
-  float w0 = 4.0/9.0;    /* weighting factor */
-  float w1 = 1.0/9.0;    /* weighting factor */
-  float w2 = 1.0/36.0;   /* weighting factor */
-
   float u_x,u_y;               /* av. velocities in x and y directions */
   float u_sq;                  /* squared velocity */
   float local_density;         /* sum of densities in a particular cell */
@@ -155,25 +148,10 @@ float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t*
   MPI_Isend(params.sendbuf_u, params.loc_nx * 3, MPI_FLOAT, params.up,   tag, MPI_COMM_WORLD, &request_u);
   MPI_Irecv(params.recvbuf_u, params.loc_nx * 3, MPI_FLOAT, params.up,   tag, MPI_COMM_WORLD, &request_d);
   MPI_Irecv(params.recvbuf_d, params.loc_nx * 3, MPI_FLOAT, params.down, tag, MPI_COMM_WORLD, &request_u);
-/*
-  MPI_Wait(&request_d, &status);
-  for(ll = 0; ll < params.loc_nx; ll++)
-  {
-    tmp_cells[(params.loc_ny - 1) * params.loc_nx + ll].speeds[7] = params.recvbuf_u[ll * 3 + 0];
-    tmp_cells[(params.loc_ny - 1) * params.loc_nx + ll].speeds[4] = params.recvbuf_u[ll * 3 + 1];
-    tmp_cells[(params.loc_ny - 1) * params.loc_nx + ll].speeds[8] = params.recvbuf_u[ll * 3 + 2];
-  }
-  MPI_Wait(&request_u, &status);
-  for(ll = 0; ll < params.loc_nx; ll++)
-  {
-    tmp_cells[ll].speeds[6] = params.recvbuf_d[ll * 3 + 0];
-    tmp_cells[ll].speeds[2] = params.recvbuf_d[ll * 3 + 1];
-    tmp_cells[ll].speeds[5] = params.recvbuf_d[ll * 3 + 2];
-  }*/
 
-  #pragma omp parallel default(none) shared(cells,tmp_cells,tmp_tmp_cells,obstacles,tot_u,tot_cells) private(ii,jj,kk,yy,ll,u_x,u_y,u_sq,local_density,u,d_equ,status,request_u,request_d) firstprivate(c_sq,w0,w1,w2,x_w,x_e,y_s,y_n)
+  //#pragma omp parallel default(none) shared(cells,tmp_cells,tmp_tmp_cells,obstacles,tot_u,tot_cells) private(ii,jj,kk,yy,ll,u_x,u_y,u_sq,local_density,u,d_equ,status,request_u,request_d) firstprivate(x_w,x_e,y_s,y_n)
   {
-    #pragma omp for reduction(+:tot_u,tot_cells) schedule(guided)
+    //#pragma omp for reduction(+:tot_u,tot_cells) schedule(static)
     // loop over all cells, but start *after* the first halo so as to do computation that
     // doesnt need halo data first. By the time this is done, hopefully wont have to wait
     // long in MPI_Wait for the async receive to have completed!
@@ -234,11 +212,6 @@ inline void loop_body(const param_t params, speed_t* cells, speed_t* tmp_cells, 
 {
   int kk;
   int y_n, x_e, y_s, x_w;
-
-  float c_sq = 1.0/3.0;  /* square of speed of sound */
-  float w0 = 4.0/9.0;    /* weighting factor */
-  float w1 = 1.0/9.0;    /* weighting factor */
-  float w2 = 1.0/36.0;   /* weighting factor */
 
   float u_x,u_y;               /* av. velocities in x and y directions */
   float u_sq;                  /* squared velocity */
@@ -322,35 +295,34 @@ inline void loop_body(const param_t params, speed_t* cells, speed_t* tmp_cells, 
     u[7] = - u_x - u_y;  /* south-west */
     u[8] =   u_x - u_y;  /* south-east */
 
-    /* equilibrium densities */
     /* zero velocity density: weight w0 */
-    d_equ[0] = w0 * local_density * (1.0 - u_sq / (2.0 * c_sq));
+    d_equ[0] = 0.44444444444 * local_density * (1.0 - u_sq * 1.5);
     /* axis speeds: weight w1 */
-    d_equ[1] = w1 * local_density * (1.0 + u[1] / c_sq
-        + (u[1] * u[1]) / (2.0 * c_sq * c_sq)
-        - u_sq / (2.0 * c_sq));
-    d_equ[2] = w1 * local_density * (1.0 + u[2] / c_sq
-        + (u[2] * u[2]) / (2.0 * c_sq * c_sq)
-        - u_sq / (2.0 * c_sq));
-    d_equ[3] = w1 * local_density * (1.0 + u[3] / c_sq
-        + (u[3] * u[3]) / (2.0 * c_sq * c_sq)
-        - u_sq / (2.0 * c_sq));
-    d_equ[4] = w1 * local_density * (1.0 + u[4] / c_sq
-        + (u[4] * u[4]) / (2.0 * c_sq * c_sq)
-        - u_sq / (2.0 * c_sq));
+    d_equ[1] = 0.11111111111 * local_density * (1.0 + u[1] * 3.0
+                     + (u[1] * u[1]) * 4.5
+                     - u_sq * 1.5);
+    d_equ[2] = 0.11111111111 * local_density * (1.0 + u[2] * 3.0
+                     + (u[2] * u[2]) * 4.5
+                     - u_sq * 1.5);
+    d_equ[3] = 0.11111111111 * local_density * (1.0 + u[3] * 3.0
+                     + (u[3] * u[3]) * 4.5
+                     - u_sq * 1.5);
+    d_equ[4] = 0.11111111111 * local_density * (1.0 + u[4] * 3.0
+                     + (u[4] * u[4]) * 4.5
+                     - u_sq * 1.5);
     /* diagonal speeds: weight w2 */
-    d_equ[5] = w2 * local_density * (1.0 + u[5] / c_sq
-        + (u[5] * u[5]) / (2.0 * c_sq * c_sq)
-        - u_sq / (2.0 * c_sq));
-    d_equ[6] = w2 * local_density * (1.0 + u[6] / c_sq
-        + (u[6] * u[6]) / (2.0 * c_sq * c_sq)
-        - u_sq / (2.0 * c_sq));
-    d_equ[7] = w2 * local_density * (1.0 + u[7] / c_sq
-        + (u[7] * u[7]) / (2.0 * c_sq * c_sq)
-        - u_sq / (2.0 * c_sq));
-    d_equ[8] = w2 * local_density * (1.0 + u[8] / c_sq
-        + (u[8] * u[8]) / (2.0 * c_sq * c_sq)
-        - u_sq / (2.0 * c_sq));
+    d_equ[5] = 0.02777777777 * local_density * (1.0 + u[5] * 3.0
+                     + (u[5] * u[5]) * 4.5
+                     - u_sq * 1.5);
+    d_equ[6] = 0.02777777777 * local_density * (1.0 + u[6] * 3.0
+                     + (u[6] * u[6]) * 4.5
+                     - u_sq * 1.5);
+    d_equ[7] = 0.02777777777 * local_density * (1.0 + u[7] * 3.0
+                     + (u[7] * u[7]) * 4.5
+                     - u_sq * 1.5);
+    d_equ[8] = 0.02777777777 * local_density * (1.0 + u[8] * 3.0
+                     + (u[8] * u[8]) * 4.5
+                     - u_sq * 1.5);
 
     // local density total
     local_density = 0.0;
