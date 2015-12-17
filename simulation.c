@@ -149,9 +149,9 @@ float d2q9bgk(const param_t params, speed_t* cells, speed_t* tmp_cells, speed_t*
   MPI_Irecv(params.recvbuf_u, params.loc_nx * 3, MPI_FLOAT, params.up,   tag, MPI_COMM_WORLD, &request_d);
   MPI_Irecv(params.recvbuf_d, params.loc_nx * 3, MPI_FLOAT, params.down, tag, MPI_COMM_WORLD, &request_u);
 
-  //#pragma omp parallel default(none) shared(cells,tmp_cells,tmp_tmp_cells,obstacles,tot_u,tot_cells) private(ii,jj,kk,yy,ll,u_x,u_y,u_sq,local_density,u,d_equ,status,request_u,request_d) firstprivate(x_w,x_e,y_s,y_n)
+  #pragma omp parallel default(none) shared(cells,tmp_cells,tmp_tmp_cells,obstacles,tot_u,tot_cells) private(ii,jj,kk,yy,ll,u_x,u_y,u_sq,local_density,u,d_equ,status,request_u,request_d) firstprivate(x_w,x_e,y_s,y_n)
   {
-    //#pragma omp for reduction(+:tot_u,tot_cells) schedule(static)
+    #pragma omp for reduction(+:tot_u,tot_cells) schedule(static)
     // loop over all cells, but start *after* the first halo so as to do computation that
     // doesnt need halo data first. By the time this is done, hopefully wont have to wait
     // long in MPI_Wait for the async receive to have completed!
